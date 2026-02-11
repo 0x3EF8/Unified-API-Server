@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+edge-tts
+yt-dlp
+segno
+pydantic
+tenacity
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
+httpx
