@@ -74,7 +74,6 @@ def _extract_body_fields(route) -> dict:
         dependant = getattr(route, "dependant", None)
         if not dependant or not dependant.body_params:
             return None
-        # Get the first body param (the Pydantic model)
         param = dependant.body_params[0]
         model_class = param.field_info.annotation
         if not hasattr(model_class, "model_fields"):
@@ -83,7 +82,6 @@ def _extract_body_fields(route) -> dict:
         for field_name, field_info in model_class.model_fields.items():
             default = field_info.default
             if default is ...:
-                # Required field, no default
                 fields[field_name] = None
             elif default is None:
                 fields[field_name] = None
@@ -102,6 +100,87 @@ def _extract_body_fields(route) -> dict:
         return None
 
 
+def _extract_field_info(route) -> list:
+    """Extract detailed field metadata for documentation."""
+    try:
+        dependant = getattr(route, "dependant", None)
+        if not dependant or not dependant.body_params:
+            return None
+        param = dependant.body_params[0]
+        model_class = param.field_info.annotation
+        if not hasattr(model_class, "model_fields"):
+            return None
+
+        fields_info = []
+        for field_name, field_info in model_class.model_fields.items():
+            # Determine type string
+            annotation = field_info.annotation
+            type_str = "any"
+            if annotation is not None:
+                origin = getattr(annotation, "__origin__", None)
+                if annotation is str or annotation is type(None):
+                    type_str = "string"
+                elif annotation is int:
+                    type_str = "integer"
+                elif annotation is float:
+                    type_str = "number"
+                elif annotation is bool:
+                    type_str = "boolean"
+                elif hasattr(annotation, "__members__"):
+                    # Enum
+                    type_str = "enum: " + ", ".join(f'"{v.value}"' for v in annotation)
+                elif origin is not None:
+                    args = getattr(annotation, "__args__", ())
+                    # Handle Optional[X] = Union[X, None]
+                    non_none = [a for a in args if a is not type(None)]
+                    if non_none:
+                        inner = non_none[0]
+                        if inner is str:
+                            type_str = "string"
+                        elif inner is int:
+                            type_str = "integer"
+                        elif inner is float:
+                            type_str = "number"
+                        elif inner is bool:
+                            type_str = "boolean"
+                        elif hasattr(inner, "__members__"):
+                            type_str = "enum: " + ", ".join(f'"{v.value}"' for v in inner)
+                        elif hasattr(inner, "__origin__"):
+                            # e.g. List[str]
+                            type_str = "array"
+                        elif hasattr(inner, "__name__") and inner.__name__ == "Url":
+                            type_str = "string (URL)"
+                        else:
+                            type_str = getattr(inner, "__name__", str(inner))
+
+            # Default value
+            default = field_info.default
+            if default is ...:
+                default_val = None
+            elif default is None:
+                default_val = None
+            elif isinstance(default, bool):
+                default_val = default
+            elif isinstance(default, (int, float)):
+                default_val = default
+            elif hasattr(default, "value"):
+                default_val = default.value
+            else:
+                default_val = str(default)
+
+            required = field_info.default is ...
+
+            fields_info.append({
+                "name": field_name,
+                "type": type_str,
+                "default": default_val,
+                "required": required,
+            })
+        return fields_info
+    except Exception:
+        return None
+
+
 @app.get("/")
 async def root():
     """API info and loaded services."""
@@ -115,13 +194,21 @@ async def root():
             methods = sorted(route.methods - {"HEAD", "OPTIONS"}) if hasattr(route, "methods") else []
             if methods:
                 body_fields = _extract_body_fields(route)
+                fields_info = _extract_field_info(route)
+                desc = route.description or ""
+                # Clean up docstring: take just the first meaningful paragraph
+                if desc:
+                    desc = desc.strip().split("\n\n")[0].strip()
                 ep = {
                     "path": route.path,
                     "methods": methods,
                     "summary": route.summary or route.name or "",
+                    "description": desc,
                 }
                 if body_fields is not None:
                     ep["body_schema"] = body_fields
+                if fields_info is not None:
+                    ep["fields"] = fields_info
                 endpoints.append(ep)
         services[name] = {
             "prefix": prefix,

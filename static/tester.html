@@ -124,6 +124,26 @@ a{color:var(--accent2);text-decoration:none}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
 
+/* ── Docs panel ── */
+.docs-content{padding:16px;font-size:13px;line-height:1.7}
+.docs-content h2{font-size:18px;font-weight:700;margin-bottom:4px;color:var(--accent2)}
+.docs-content h3{font-size:14px;font-weight:600;margin:20px 0 8px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:4px}
+.docs-content p{color:var(--dim);margin-bottom:8px}
+.docs-content .doc-method{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px}
+.docs-content .doc-method.post{background:#6c5ce722;color:var(--accent2)}
+.docs-content .doc-method.get{background:#00b89422;color:var(--green)}
+.docs-content .doc-path{font-family:var(--mono);font-size:14px;color:var(--text)}
+.docs-content .fields-table{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:12px}
+.docs-content .fields-table th{text-align:left;padding:6px 10px;background:var(--surface2);color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.docs-content .fields-table td{padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.docs-content .fields-table .fname{color:var(--accent2);font-family:var(--mono);white-space:nowrap}
+.docs-content .fields-table .ftype{color:var(--dim);font-family:var(--mono);font-size:11px}
+.docs-content .fields-table .fdefault{color:var(--yellow);font-family:var(--mono);font-size:11px}
+.docs-content .fields-table .freq{color:var(--red);font-size:10px;font-weight:700}
+.docs-content pre.code-block{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0 16px;font-family:var(--mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--text);white-space:pre;word-break:normal}
+.docs-content .code-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-top:8px;font-weight:600}
+.docs-content .no-docs{color:var(--dim);text-align:center;padding:40px}
+
 /* ── Empty state ── */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);gap:8px;padding:40px}
 .empty-state .icon{font-size:40px;opacity:.3}
@@ -192,7 +212,7 @@ a{color:var(--accent2);text-decoration:none}
           <div class="tab active" data-tab="body" onclick="switchReqTab(this)">Body</div>
           <div class="tab" data-tab="headers" onclick="switchReqTab(this)">Headers<span class="tab-badge" id="headerCount">1</span></div>
           <div class="tab" data-tab="params" onclick="switchReqTab(this)">Params</div>
-
+          <div class="tab" data-tab="docs" onclick="switchReqTab(this)">Docs</div>
         </div>
 
         <!-- Body tab -->
@@ -221,6 +241,12 @@ a{color:var(--accent2);text-decoration:none}
           <button class="add-row-btn" onclick="addParamRow()">+ Add Parameter</button>
         </div>
 
+        <!-- Docs tab -->
+        <div class="panel-body" id="tab-docs" style="display:none">
+          <div class="docs-content" id="docsContent">
+            <div class="no-docs">Select an endpoint to view documentation</div>
+          </div>
+        </div>
 
       </div>
 
@@ -310,6 +336,8 @@ async function fetchEndpoints() {
             path: ep.path,
             service: svc,
             body_schema: ep.body_schema || null,
+            description: ep.description || '',
+            fields: ep.fields || null,
           });
         });
       });
@@ -353,6 +381,65 @@ function renderCustomList() {
   });
 }
 
+function renderDocs(ep) {
+  const c = document.getElementById('docsContent');
+  const m = ep.method.toUpperCase();
+  const mClass = m === 'POST' ? 'post' : 'get';
+  const baseUrl = window.location.origin;
+
+  let html = `<h2>${ep.name}</h2>`;
+  html += `<p><span class="doc-method ${mClass}">${m}</span><span class="doc-path">${ep.path}</span></p>`;
+
+  if (ep.description) {
+    html += `<p>${ep.description}</p>`;
+  }
+
+  // Fields table
+  if (ep.fields && ep.fields.length > 0) {
+    html += `<h3>Parameters</h3>`;
+    html += `<table class="fields-table"><tr><th>Name</th><th>Type</th><th>Default</th><th>Required</th></tr>`;
+    ep.fields.forEach(f => {
+      const req = f.required ? '<span class="freq">YES</span>' : '—';
+      const def = f.default !== null && f.default !== undefined ? `<span class="fdefault">${JSON.stringify(f.default)}</span>` : '<span style="color:var(--dim)">—</span>';
+      html += `<tr><td class="fname">${f.name}</td><td class="ftype">${f.type}</td><td>${def}</td><td>${req}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+
+  // Build example body
+  const body = ep.body_schema ? JSON.stringify(ep.body_schema, null, 2) : null;
+
+  // Examples
+  html += `<h3>Examples</h3>`;
+
+  // cURL
+  html += `<div class="code-label">cURL</div>`;
+  if (m === 'POST' && body) {
+    const escaped = body.replace(/'/g, "'\\''");
+    html += `<pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\\n  -H 'Content-Type: application/json' \\\n  -d '${escaped}'</pre>`;
+  } else {
+    html += `<pre class="code-block">curl '${baseUrl}${ep.path}'</pre>`;
+  }
+
+  // Python
+  html += `<div class="code-label">Python</div>`;
+  if (m === 'POST' && body) {
+    html += `<pre class="code-block">import requests\n\nresponse = requests.post(\n    "${baseUrl}${ep.path}",\n    json=${body.replace(/"/g, '"')}\n)\nprint(response.json())</pre>`;
+  } else {
+    html += `<pre class="code-block">import requests\n\nresponse = requests.get("${baseUrl}${ep.path}")\nprint(response.json())</pre>`;
+  }
+
+  // JavaScript
+  html += `<div class="code-label">JavaScript</div>`;
+  if (m === 'POST' && body) {
+    html += `<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${body})\n});\nconst data = await response.json();\nconsole.log(data);</pre>`;
+  } else {
+    html += `<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");\nconst data = await response.json();\nconsole.log(data);</pre>`;
+  }
+
+  c.innerHTML = html;
+}
+
 function loadEndpoint(ep, el) {
   document.getElementById('methodSelect').value = ep.method;
   document.getElementById('urlInput').value = ep.path;
@@ -371,13 +458,16 @@ function loadEndpoint(ep, el) {
 
   document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
   el.classList.add('active');
+
+  // Render docs for this endpoint
+  renderDocs(ep);
 }
 
 // ─── Tabs ───
 function switchReqTab(el) {
   document.querySelectorAll('#reqTabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['body','headers','params'].forEach(id => {
+  ['body','headers','params','docs'].forEach(id => {
     document.getElementById('tab-'+id).style.display = el.dataset.tab === id ? '' : 'none';
   });
 }
