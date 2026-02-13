@@ -41,7 +41,7 @@ def _cleanup_download(download_id: str):
         logger.info(f"✓ Cleaned up: {download_id}")
 
 
-@router.post("")
+@router.post("", summary="Media Downloader")
 async def unidl(request: DownloadRequest, background_tasks: BackgroundTasks):
     """Download video or audio from any supported URL.
 

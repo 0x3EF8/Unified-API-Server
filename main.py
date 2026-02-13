@@ -72,14 +72,29 @@ for router in load_service_routers():
 async def root():
     """API info and loaded services."""
     service_info = get_loaded_services()
+    services = {}
+    for name, info in service_info["services"].items():
+        router = info["router"]
+        prefix = info["prefix"]
+        endpoints = []
+        for route in router.routes:
+            methods = sorted(route.methods - {"HEAD", "OPTIONS"}) if hasattr(route, "methods") else []
+            if methods:
+                endpoints.append({
+                    "path": route.path,
+                    "methods": methods,
+                    "summary": route.summary or route.name or "",
+                })
+        services[name] = {
+            "prefix": prefix,
+            "routes": len(endpoints),
+            "endpoints": endpoints,
+        }
     return {
         "name": "Unified API Server",
         "version": "1.0.0",
         "status": "operational",
-        "services": {
-            name: {"prefix": info["prefix"], "routes": info["routes"]}
-            for name, info in service_info["services"].items()
-        },
+        "services": services,
     }
 
 

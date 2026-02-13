@@ -14,7 +14,7 @@ router = APIRouter(prefix="/tts", tags=["TTS"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("")
+@router.post("", summary="Text to Speech")
 async def tts(request: TTSRequest):
     """Unified TTS endpoint.
 

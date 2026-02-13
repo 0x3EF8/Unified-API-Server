@@ -280,38 +280,47 @@ let responseFilename = 'response';
 let history = [];
 const customRequests = JSON.parse(localStorage.getItem('api_tester_custom') || '[]');
 
-// ─── API Endpoints ───
-const ENDPOINTS = [
-  {name:"Text to Speech",method:"POST",path:"/tts",desc:"Generate speech audio from text",
-   body:{text:"Hello, world!",voice:"en-US-JennyNeural"}},
-  {name:"List Voices",method:"POST",path:"/tts",desc:"Get all 400+ available TTS voices",
-   body:{list_voices:true}},
-  {name:"QR Code",method:"POST",path:"/qr",desc:"Generate QR codes in various formats",
-   body:{data:"https://github.com"}},
-  {name:"WiFi QR",method:"POST",path:"/qr",desc:"Generate WiFi connection QR code",
-   body:{ssid:"MyNetwork",password:"secret",security:"WPA"}},
-  {name:"Download Media",method:"POST",path:"/unidl",desc:"Download video/audio from any URL",
-   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"720p"}},
-  {name:"Server Info",method:"GET",path:"/",desc:"API info and loaded services"},
-  {name:"Health Check",method:"GET",path:"/health",desc:"Health, uptime & connectivity"},
-];
+// ─── API Endpoints (auto-discovered from server) ───
+let ENDPOINTS = [];
 
 // ─── Init ───
 function init() {
-  checkHealth();
-  renderEndpoints();
+  fetchEndpoints();
   renderCustomList();
   setupKeyboard();
 }
 
-async function checkHealth() {
+async function fetchEndpoints() {
   const dot = document.getElementById('statusDot');
+  const list = document.getElementById('endpointList');
+  list.innerHTML = '<li style="color:var(--dim);font-size:12px;cursor:default">Loading...</li>';
   try {
-    const r = await fetch(BASE + '/health');
+    const r = await fetch(BASE + '/');
     const d = await r.json();
-    dot.className = 'status-dot ' + (d.status === 'healthy' ? 'ok' : 'err');
+    dot.className = 'status-dot ' + (d.status === 'operational' ? 'ok' : 'err');
+
+    // Build endpoints from live service data
+    ENDPOINTS = [];
+    for (const [svc, info] of Object.entries(d.services || {})) {
+      (info.endpoints || []).forEach(ep => {
+        ep.methods.forEach(m => {
+          ENDPOINTS.push({
+            name: ep.summary || svc,
+            method: m,
+            path: ep.path,
+            service: svc,
+          });
+        });
+      });
+    }
+    // Always include system routes
+    ENDPOINTS.push({name:"Server Info",method:"GET",path:"/",service:"system"});
+    ENDPOINTS.push({name:"Health Check",method:"GET",path:"/health",service:"system"});
+
+    renderEndpoints();
   } catch {
     dot.className = 'status-dot err';
+    list.innerHTML = '<li style="color:var(--red);font-size:12px;cursor:default">Failed to load</li>';
   }
 }
 
@@ -322,7 +331,7 @@ function renderEndpoints() {
   ENDPOINTS.forEach(ep => {
     const li = document.createElement('li');
     li.innerHTML = `<span class="method ${ep.method.toLowerCase()}">${ep.method}</span>${ep.name}`;
-    li.title = ep.desc + ' — ' + ep.path;
+    li.title = ep.method + ' ' + ep.path;
     li.onclick = () => loadEndpoint(ep, li);
     list.appendChild(li);
   });
@@ -346,7 +355,7 @@ function renderCustomList() {
 function loadEndpoint(ep, el) {
   document.getElementById('methodSelect').value = ep.method;
   document.getElementById('urlInput').value = ep.path;
-  document.getElementById('bodyEditor').value = ep.body ? JSON.stringify(ep.body, null, 2) : '';
+  document.getElementById('bodyEditor').value = ['POST','PUT','PATCH'].includes(ep.method) ? '{\n  \n}' : '';
   document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
   el.classList.add('active');
 }

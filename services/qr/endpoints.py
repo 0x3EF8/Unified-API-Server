@@ -11,7 +11,7 @@ router = APIRouter(prefix="/qr", tags=["QR Code"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("")
+@router.post("", summary="QR Code Generator")
 async def qr(request: QRRequest):
     """Unified QR code endpoint.
 
