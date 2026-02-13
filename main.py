@@ -186,6 +186,231 @@ async def root():
     """API info and loaded services."""
     service_info = get_loaded_services()
     services = {}
+
+    # Use-case examples for each service endpoint
+    use_cases = {
+        "/tts": {
+            "notes": [
+                "Returns audio/mpeg binary — save the response as an .mp3 file",
+                "Use <code>list_voices: true</code> to discover all available voices before generating",
+                "Rate, pitch, and volume accept percentage strings like <code>\"+50%\"</code> or <code>\"-20%\"</code>",
+            ],
+            "examples": [
+                {
+                    "title": "Basic Text to Speech",
+                    "description": "Convert text to speech using the default English voice",
+                    "body": {"text": "Hello, welcome to the API!", "voice": "en-US-JennyNeural"},
+                },
+                {
+                    "title": "Custom Voice & Speed",
+                    "description": "Use a male voice with faster speed and higher pitch",
+                    "body": {"text": "Breaking news: AI is amazing!", "voice": "en-US-GuyNeural", "rate": "+30%", "pitch": "+10Hz"},
+                },
+                {
+                    "title": "Multilingual — Spanish",
+                    "description": "Generate speech in Spanish",
+                    "body": {"text": "Hola, bienvenido a nuestro servicio", "voice": "es-ES-ElviraNeural"},
+                },
+                {
+                    "title": "Multilingual — Japanese",
+                    "description": "Generate speech in Japanese with slow speed",
+                    "body": {"text": "こんにちは、世界", "voice": "ja-JP-NanamiNeural", "rate": "-20%"},
+                },
+                {
+                    "title": "Multilingual — French",
+                    "description": "Generate speech in French with adjusted volume",
+                    "body": {"text": "Bonjour le monde, bienvenue!", "voice": "fr-FR-DeniseNeural", "volume": "+20%"},
+                },
+                {
+                    "title": "List All Voices",
+                    "description": "Get a list of all available voices grouped by locale",
+                    "body": {"list_voices": True},
+                },
+            ],
+        },
+        "/qr": {
+            "notes": [
+                "Returns the QR code image directly — <code>png</code>, <code>svg</code>, <code>pdf</code>, <code>eps</code>, or <code>txt</code>",
+                "For WiFi QR codes, use <code>ssid</code> instead of <code>data</code>",
+                "Custom colors accept CSS color names, hex (<code>#FF0000</code>), or RGB values",
+                "Error correction levels: <strong>L</strong> (7%), <strong>M</strong> (15%), <strong>Q</strong> (25%), <strong>H</strong> (30%)",
+            ],
+            "examples": [
+                {
+                    "title": "Website URL",
+                    "description": "QR code linking to a website — scan with any phone camera",
+                    "body": {"data": "https://github.com"},
+                },
+                {
+                    "title": "YouTube Video Link",
+                    "description": "Share a YouTube video via QR code",
+                    "body": {"data": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+                },
+                {
+                    "title": "Facebook Profile / Page",
+                    "description": "Link to a Facebook page or profile",
+                    "body": {"data": "https://www.facebook.com/yourpage"},
+                },
+                {
+                    "title": "Instagram Profile",
+                    "description": "Generate a QR code for an Instagram profile",
+                    "body": {"data": "https://www.instagram.com/yourprofile"},
+                },
+                {
+                    "title": "TikTok Profile",
+                    "description": "Share a TikTok profile via QR code",
+                    "body": {"data": "https://www.tiktok.com/@yourusername"},
+                },
+                {
+                    "title": "Twitter / X Profile",
+                    "description": "Link to a Twitter/X profile",
+                    "body": {"data": "https://x.com/yourusername"},
+                },
+                {
+                    "title": "Email Address (Mailto)",
+                    "description": "Opens the email app with a pre-filled recipient",
+                    "body": {"data": "mailto:contact@example.com?subject=Hello"},
+                },
+                {
+                    "title": "Phone Number",
+                    "description": "Scan to call a phone number directly",
+                    "body": {"data": "tel:+1234567890"},
+                },
+                {
+                    "title": "SMS Message",
+                    "description": "Opens SMS with a pre-filled message",
+                    "body": {"data": "sms:+1234567890?body=Hello from QR!"},
+                },
+                {
+                    "title": "Plain Text",
+                    "description": "Encode any text content into a QR code",
+                    "body": {"data": "Meeting at 3 PM in Conference Room B"},
+                },
+                {
+                    "title": "vCard (Contact Card)",
+                    "description": "Save a contact directly to phone — supports name, phone, email",
+                    "body": {"data": "BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL:+1234567890\nEMAIL:john@example.com\nEND:VCARD"},
+                },
+                {
+                    "title": "WiFi Network",
+                    "description": "Scan to auto-connect to a WiFi network — no typing passwords",
+                    "body": {"ssid": "MyWiFi", "password": "supersecret123", "security": "WPA"},
+                },
+                {
+                    "title": "WiFi (Hidden Network)",
+                    "description": "Connect to a hidden WiFi network",
+                    "body": {"ssid": "HiddenNet", "password": "secret", "security": "WPA", "hidden": True},
+                },
+                {
+                    "title": "WiFi (Open / No Password)",
+                    "description": "QR for an open WiFi network without a password",
+                    "body": {"ssid": "CoffeeShop_Free", "security": "nopass"},
+                },
+                {
+                    "title": "Custom Styled QR",
+                    "description": "Custom colors, high error correction, SVG format",
+                    "body": {"data": "https://example.com", "dark": "#1a1a2e", "light": "#e0e0e8", "error_correction": "H", "format": "svg", "scale": 15, "border": 2},
+                },
+                {
+                    "title": "Calendar Event",
+                    "description": "Add an event directly to calendar app",
+                    "body": {"data": "BEGIN:VEVENT\nSUMMARY:Team Meeting\nDTSTART:20260301T140000\nDTEND:20260301T150000\nLOCATION:Room 101\nEND:VEVENT"},
+                },
+                {
+                    "title": "Geo Location",
+                    "description": "Open a location in maps — great for business addresses",
+                    "body": {"data": "geo:40.7128,-74.0060?q=New+York+City"},
+                },
+            ],
+        },
+        "/unidl": {
+            "notes": [
+                "Returns the file directly as a binary download — save to disk",
+                "Supports <strong>1000+</strong> sites via yt-dlp: YouTube, Facebook, Instagram, TikTok, Twitter/X, Reddit, Vimeo, SoundCloud, Twitch, and more",
+                "Use <code>extract_audio: true</code> to get audio-only output",
+                "Quality options: <code>best</code>, <code>1080p</code>, <code>720p</code>, <code>480p</code>, <code>audio</code>",
+                "The response includes a <code>Content-Disposition</code> header with the original filename",
+            ],
+            "examples": [
+                {
+                    "title": "YouTube Video (720p)",
+                    "description": "Download a YouTube video at 720p quality",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "quality": "720p"},
+                },
+                {
+                    "title": "YouTube Video (Best Quality)",
+                    "description": "Download at the highest available quality",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "quality": "best"},
+                },
+                {
+                    "title": "YouTube Audio Only (MP3)",
+                    "description": "Extract just the audio as MP3",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "extract_audio": True, "audio_format": "mp3"},
+                },
+                {
+                    "title": "YouTube with Subtitles",
+                    "description": "Download with embedded English subtitles",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "subtitles": True, "subtitle_langs": ["en"], "embed_subtitles": True},
+                },
+                {
+                    "title": "YouTube Playlist (First 5)",
+                    "description": "Download the first 5 videos from a playlist",
+                    "body": {"url": "https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf", "playlist_start": 1, "playlist_end": 5},
+                },
+                {
+                    "title": "Facebook Video",
+                    "description": "Download a video from Facebook",
+                    "body": {"url": "https://www.facebook.com/watch/?v=1234567890", "quality": "720p"},
+                },
+                {
+                    "title": "Instagram Reel / Post",
+                    "description": "Download an Instagram reel or video post",
+                    "body": {"url": "https://www.instagram.com/reel/ABC123/", "quality": "best"},
+                },
+                {
+                    "title": "TikTok Video",
+                    "description": "Download a TikTok video without watermark",
+                    "body": {"url": "https://www.tiktok.com/@user/video/1234567890", "quality": "best"},
+                },
+                {
+                    "title": "Twitter / X Video",
+                    "description": "Download a video from a tweet",
+                    "body": {"url": "https://x.com/user/status/1234567890", "quality": "best"},
+                },
+                {
+                    "title": "Reddit Video",
+                    "description": "Download a video from Reddit",
+                    "body": {"url": "https://www.reddit.com/r/videos/comments/abc123/example/", "quality": "best"},
+                },
+                {
+                    "title": "SoundCloud Audio",
+                    "description": "Download audio from SoundCloud as MP3",
+                    "body": {"url": "https://soundcloud.com/artist/track-name", "extract_audio": True, "audio_format": "mp3"},
+                },
+                {
+                    "title": "Vimeo Video",
+                    "description": "Download a Vimeo video",
+                    "body": {"url": "https://vimeo.com/123456789", "quality": "1080p"},
+                },
+                {
+                    "title": "Twitch Clip",
+                    "description": "Download a Twitch clip",
+                    "body": {"url": "https://clips.twitch.tv/ClipName", "quality": "best"},
+                },
+                {
+                    "title": "Audio Only (M4A Best)",
+                    "description": "Extract audio in M4A format at best quality",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "extract_audio": True, "audio_format": "m4a"},
+                },
+                {
+                    "title": "With Metadata & Thumbnail",
+                    "description": "Download with embedded metadata and thumbnail",
+                    "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "add_metadata": True, "embed_thumbnail": True},
+                },
+            ],
+        },
+    }
+
     for name, info in service_info["services"].items():
         router = info["router"]
         prefix = info["prefix"]
@@ -209,6 +434,11 @@ async def root():
                     ep["body_schema"] = body_fields
                 if fields_info is not None:
                     ep["fields"] = fields_info
+                # Attach use-case examples if available
+                route_cases = use_cases.get(route.path)
+                if route_cases:
+                    ep["use_cases"] = route_cases.get("examples", [])
+                    ep["notes"] = route_cases.get("notes", [])
                 endpoints.append(ep)
         services[name] = {
             "prefix": prefix,

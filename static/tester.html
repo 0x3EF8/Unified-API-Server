@@ -125,9 +125,9 @@ a{color:var(--accent2);text-decoration:none}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
 
 /* ── Docs panel ── */
-.docs-content{padding:16px;font-size:13px;line-height:1.7}
-.docs-content h2{font-size:18px;font-weight:700;margin-bottom:4px;color:var(--accent2)}
-.docs-content h3{font-size:14px;font-weight:600;margin:20px 0 8px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:4px}
+.docs-content{padding:20px;font-size:13px;line-height:1.7;overflow-y:auto}
+.docs-content h2{font-size:20px;font-weight:700;margin-bottom:4px;color:var(--accent2)}
+.docs-content h3{font-size:14px;font-weight:600;margin:24px 0 10px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:6px}
 .docs-content p{color:var(--dim);margin-bottom:8px}
 .docs-content .doc-method{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px}
 .docs-content .doc-method.post{background:#6c5ce722;color:var(--accent2)}
@@ -143,6 +143,31 @@ a{color:var(--accent2);text-decoration:none}
 .docs-content pre.code-block{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0 16px;font-family:var(--mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--text);white-space:pre;word-break:normal}
 .docs-content .code-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-top:8px;font-weight:600}
 .docs-content .no-docs{color:var(--dim);text-align:center;padding:40px}
+
+/* ── Notes list ── */
+.docs-content .doc-notes{margin:8px 0 16px;padding:12px 16px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid var(--accent)}
+.docs-content .doc-notes li{color:var(--dim);margin:4px 0;padding-left:4px;list-style:none;font-size:12px;line-height:1.6}
+.docs-content .doc-notes li::before{content:'→ ';color:var(--accent2);font-weight:700}
+.docs-content .doc-notes li code,.docs-content .doc-notes li strong{color:var(--text)}
+
+/* ── Use-case cards ── */
+.docs-content .use-case-grid{display:flex;flex-direction:column;gap:10px;margin:8px 0 20px}
+.docs-content .use-case-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;transition:all .15s;cursor:default}
+.docs-content .use-case-card:hover{border-color:var(--accent);background:var(--surface)}
+.docs-content .use-case-card .uc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.docs-content .use-case-card .uc-title{font-size:13px;font-weight:600;color:var(--text)}
+.docs-content .use-case-card .uc-desc{font-size:11px;color:var(--dim);margin-bottom:8px}
+.docs-content .use-case-card .uc-body{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--bg);padding:8px 10px;border-radius:4px;overflow-x:auto;white-space:pre;line-height:1.5;max-height:120px;overflow-y:auto}
+.docs-content .try-btn{padding:3px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.docs-content .try-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+
+/* ── Code tabs ── */
+.docs-content .code-tabs{display:flex;gap:0;margin-top:8px;border-bottom:1px solid var(--border)}
+.docs-content .code-tab{padding:4px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;font-weight:600;user-select:none}
+.docs-content .code-tab:hover{color:var(--text)}
+.docs-content .code-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+.docs-content .code-panel{display:none}
+.docs-content .code-panel.active{display:block}
 
 /* ── Empty state ── */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);gap:8px;padding:40px}
@@ -338,6 +363,8 @@ async function fetchEndpoints() {
             body_schema: ep.body_schema || null,
             description: ep.description || '',
             fields: ep.fields || null,
+            use_cases: ep.use_cases || [],
+            notes: ep.notes || [],
           });
         });
       });
@@ -381,6 +408,9 @@ function renderCustomList() {
   });
 }
 
+// ─── Docs rendering ───
+let _docCodeTab = 'curl';
+
 function renderDocs(ep) {
   const c = document.getElementById('docsContent');
   const m = ep.method.toUpperCase();
@@ -394,9 +424,32 @@ function renderDocs(ep) {
     html += `<p>${ep.description}</p>`;
   }
 
+  // Important notes
+  if (ep.notes && ep.notes.length > 0) {
+    html += `<ul class="doc-notes">`;
+    ep.notes.forEach(n => { html += `<li>${n}</li>`; });
+    html += `</ul>`;
+  }
+
+  // Use-case examples with Try It buttons
+  if (ep.use_cases && ep.use_cases.length > 0) {
+    html += `<h3>Use Cases &amp; Examples</h3>`;
+    html += `<div class="use-case-grid">`;
+    ep.use_cases.forEach((uc, idx) => {
+      const bodyJson = JSON.stringify(uc.body, null, 2);
+      const escapedBody = bodyJson.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `<div class="use-case-card">`;
+      html += `<div class="uc-header"><span class="uc-title">${uc.title}</span><button class="try-btn" onclick="tryUseCase(${idx})">Try it</button></div>`;
+      html += `<div class="uc-desc">${uc.description}</div>`;
+      html += `<div class="uc-body">${escapedBody}</div>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
   // Fields table
   if (ep.fields && ep.fields.length > 0) {
-    html += `<h3>Parameters</h3>`;
+    html += `<h3>All Parameters</h3>`;
     html += `<table class="fields-table"><tr><th>Name</th><th>Type</th><th>Default</th><th>Required</th></tr>`;
     ep.fields.forEach(f => {
       const req = f.required ? '<span class="freq">YES</span>' : '—';
@@ -406,38 +459,81 @@ function renderDocs(ep) {
     html += `</table>`;
   }
 
-  // Build example body
+  // Code examples with tabs
   const body = ep.body_schema ? JSON.stringify(ep.body_schema, null, 2) : null;
+  html += `<h3>Code Examples</h3>`;
+  html += `<div class="code-tabs">`;
+  html += `<div class="code-tab ${_docCodeTab==='curl'?'active':''}" onclick="switchCodeTab('curl')">cURL</div>`;
+  html += `<div class="code-tab ${_docCodeTab==='python'?'active':''}" onclick="switchCodeTab('python')">Python</div>`;
+  html += `<div class="code-tab ${_docCodeTab==='javascript'?'active':''}" onclick="switchCodeTab('javascript')">JavaScript</div>`;
+  html += `</div>`;
 
-  // Examples
-  html += `<h3>Examples</h3>`;
-
-  // cURL
-  html += `<div class="code-label">cURL</div>`;
   if (m === 'POST' && body) {
     const escaped = body.replace(/'/g, "'\\''");
-    html += `<pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\\n  -H 'Content-Type: application/json' \\\n  -d '${escaped}'</pre>`;
-  } else {
-    html += `<pre class="code-block">curl '${baseUrl}${ep.path}'</pre>`;
-  }
+    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl"><pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\
+  -H 'Content-Type: application/json' \\
+  -d '${escaped}'</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python"><pre class="code-block">import requests
 
-  // Python
-  html += `<div class="code-label">Python</div>`;
-  if (m === 'POST' && body) {
-    html += `<pre class="code-block">import requests\n\nresponse = requests.post(\n    "${baseUrl}${ep.path}",\n    json=${body.replace(/"/g, '"')}\n)\nprint(response.json())</pre>`;
-  } else {
-    html += `<pre class="code-block">import requests\n\nresponse = requests.get("${baseUrl}${ep.path}")\nprint(response.json())</pre>`;
-  }
+response = requests.post(
+    "${baseUrl}${ep.path}",
+    json=${body}
+)
 
-  // JavaScript
-  html += `<div class="code-label">JavaScript</div>`;
-  if (m === 'POST' && body) {
-    html += `<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${body})\n});\nconst data = await response.json();\nconsole.log(data);</pre>`;
+# For JSON responses:
+print(response.json())
+
+# For file responses (audio/video/image):
+with open("output", "wb") as f:
+    f.write(response.content)</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript"><pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(${body})
+});
+
+// For JSON responses:
+const data = await response.json();
+
+// For file responses:
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);</pre></div>`;
   } else {
-    html += `<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");\nconst data = await response.json();\nconsole.log(data);</pre>`;
+    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl"><pre class="code-block">curl '${baseUrl}${ep.path}'</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python"><pre class="code-block">import requests
+
+response = requests.get("${baseUrl}${ep.path}")
+print(response.json())</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript"><pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");
+const data = await response.json();
+console.log(data);</pre></div>`;
   }
 
   c.innerHTML = html;
+}
+
+function switchCodeTab(tab) {
+  _docCodeTab = tab;
+  document.querySelectorAll('.docs-content .code-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase() === tab));
+  document.querySelectorAll('.docs-content .code-panel').forEach(p => p.classList.toggle('active', p.dataset.code === tab));
+}
+
+function tryUseCase(idx) {
+  const activeEl = document.querySelector('.sidebar-list li.active');
+  if (!activeEl) return;
+  const epIdx = Array.from(document.querySelectorAll('#endpointList li')).indexOf(activeEl);
+  if (epIdx < 0 || !ENDPOINTS[epIdx]) return;
+  const ep = ENDPOINTS[epIdx];
+  if (!ep.use_cases || !ep.use_cases[idx]) return;
+
+  const uc = ep.use_cases[idx];
+  document.getElementById('methodSelect').value = ep.method;
+  document.getElementById('urlInput').value = ep.path;
+  document.getElementById('bodyEditor').value = JSON.stringify(uc.body, null, 2);
+
+  // Switch to Body tab
+  const bodyTab = document.querySelector('#reqTabs .tab[data-tab="body"]');
+  if (bodyTab) switchReqTab(bodyTab);
 }
 
 function loadEndpoint(ep, el) {
