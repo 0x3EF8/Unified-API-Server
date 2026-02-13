@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 
 import yt_dlp
@@ -12,6 +13,15 @@ from .models import DownloadRequest
 from .config_builder import build_ydl_opts
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_filename(name: str) -> str:
+    """Remove characters illegal in Windows paths."""
+    # Strip characters forbidden on Windows: \ / : * ? " < > |
+    sanitized = re.sub(r'[\\/:*?"<>|]', '_', name)
+    # Collapse multiple underscores/spaces
+    sanitized = re.sub(r'[_\s]+', '_', sanitized).strip('_. ')
+    return sanitized or 'download'
 
 
 @retry(
@@ -56,11 +66,11 @@ async def download_media(request: DownloadRequest, download_id: str) -> str:
 
             is_playlist = info and "entries" in info
             if is_playlist:
-                playlist_title = info.get("title", "playlist")
+                playlist_title = _sanitize_filename(info.get("title", "playlist"))[:50]
 
-                playlist_folder = output_dir / playlist_title[:50]
+                playlist_folder = output_dir / playlist_title
                 playlist_folder.mkdir(parents=True, exist_ok=True)
-                ydl_opts["outtmpl"] = str(playlist_folder / "%(title)s.%(ext)s")
+                ydl_opts["outtmpl"] = str(playlist_folder / "%(title).100B.%(ext)s")
 
                 _download_with_retry(url, ydl_opts)
                 return str(playlist_folder)

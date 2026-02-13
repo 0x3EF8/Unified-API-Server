@@ -42,7 +42,10 @@ def build_ydl_opts(
             template = "%(title)s.%(ext)s"
         opts["outtmpl"] = str(output_dir / template)
     else:
-        opts["outtmpl"] = str(output_dir / "%(title)s.%(ext)s")
+        opts["outtmpl"] = str(output_dir / "%(title).200B.%(ext)s")
+
+    # Sanitize filenames for Windows compatibility
+    opts["windowsfilenames"] = True
 
     # Format selection
     if request.format:
