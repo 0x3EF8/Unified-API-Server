@@ -97,3 +97,40 @@ EXAMPLES = [
         "body": {"data": "geo:40.7128,-74.0060?q=New+York+City"},
     },
 ]
+
+CODE_EXAMPLES = {
+    "curl": '''curl -X POST '{base_url}/qr' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+  "data": "https://github.com"
+}' --output qrcode.png''',
+
+    "python": '''import requests
+
+response = requests.post(
+    "{base_url}/qr",
+    json={
+        "data": "https://github.com"
+    }
+)
+
+# Save the QR code image
+with open("qrcode.png", "wb") as f:
+    f.write(response.content)
+print(f"Saved qrcode.png ({{len(response.content)}} bytes)")''',
+
+    "javascript": '''const response = await fetch("{base_url}/qr", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    "data": "https://github.com"
+  })
+});
+
+// Display the QR code image
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);
+const img = document.createElement("img");
+img.src = url;
+document.body.appendChild(img);''',
+}

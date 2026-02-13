@@ -214,6 +214,8 @@ async def root():
                 if svc_docs:
                     ep["use_cases"] = svc_docs.get("examples", [])
                     ep["notes"] = svc_docs.get("notes", [])
+                    if svc_docs.get("code_examples"):
+                        ep["code_examples"] = svc_docs["code_examples"]
                 endpoints.append(ep)
         services[name] = {
             "prefix": prefix,

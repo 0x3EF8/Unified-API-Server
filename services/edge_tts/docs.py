@@ -41,3 +41,44 @@ EXAMPLES = [
         "body": {"list_voices": True},
     },
 ]
+
+CODE_EXAMPLES = {
+    "curl": '''curl -X POST '{base_url}/tts' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+  "text": "Hello, welcome to the API!",
+  "voice": "en-US-JennyNeural"
+}' --output output.mp3''',
+
+    "python": '''import requests
+
+response = requests.post(
+    "{base_url}/tts",
+    json={
+        "text": "Hello, welcome to the API!",
+        "voice": "en-US-JennyNeural"
+    }
+)
+
+# Save the audio file
+with open("output.mp3", "wb") as f:
+    f.write(response.content)
+print(f"Saved output.mp3 ({{len(response.content)}} bytes)")''',
+
+    "javascript": '''const response = await fetch("{base_url}/tts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    "text": "Hello, welcome to the API!",
+    "voice": "en-US-JennyNeural"
+  })
+});
+
+// Save the audio file
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "output.mp3";
+a.click();''',
+}

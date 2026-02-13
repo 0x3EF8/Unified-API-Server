@@ -462,14 +462,8 @@ function renderDocs(ep) {
     html += `</table>`;
   }
 
-  // Code examples with tabs — use first use_case body (real working example) or fall back to schema defaults
-  const exampleBody = (ep.use_cases && ep.use_cases.length > 0 && ep.use_cases[0].body)
-    ? ep.use_cases[0].body : ep.body_schema;
-  const body = exampleBody ? JSON.stringify(exampleBody, null, 2) : null;
-  // Python version: null→None, true→True, false→False
-  const pyBody = body ? body.replace(/\bnull\b/g, 'None').replace(/\btrue\b/g, 'True').replace(/\bfalse\b/g, 'False') : null;
+  // Code examples with tabs
   const copyBtn = `<button class="copy-btn" onclick="copyCode(this)">Copy</button>`;
-
   html += `<h3>Code Examples</h3>`;
   html += `<div class="code-tabs">`;
   html += `<div class="code-tab ${_docCodeTab==='curl'?'active':''}" onclick="switchCodeTab('curl')">cURL</div>`;
@@ -477,45 +471,15 @@ function renderDocs(ep) {
   html += `<div class="code-tab ${_docCodeTab==='javascript'?'active':''}" onclick="switchCodeTab('javascript')">JavaScript</div>`;
   html += `</div>`;
 
-  if (m === 'POST' && body) {
-    const escaped = body.replace(/'/g, "'\\''");
-    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl">${copyBtn}<pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\
-  -H 'Content-Type: application/json' \\
-  -d '${escaped}'</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python">${copyBtn}<pre class="code-block">import requests
-
-response = requests.post(
-    "${baseUrl}${ep.path}",
-    json=${pyBody}
-)
-
-# For JSON responses:
-print(response.json())
-
-# For file responses (audio/video/image):
-with open("output", "wb") as f:
-    f.write(response.content)</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript">${copyBtn}<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(${body})
-});
-
-// For JSON responses:
-const data = await response.json();
-
-// For file responses:
-const blob = await response.blob();
-const url = URL.createObjectURL(blob);</pre></div>`;
+  if (ep.code_examples) {
+    // Use hand-crafted code examples from service docs.py
+    const ce = ep.code_examples;
+    const r = (s) => s.replaceAll('{base_url}', baseUrl);
+    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl">${copyBtn}<pre class="code-block">${r(ce.curl)}</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python">${copyBtn}<pre class="code-block">${r(ce.python)}</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript">${copyBtn}<pre class="code-block">${r(ce.javascript)}</pre></div>`;
   } else {
-    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl">${copyBtn}<pre class="code-block">curl '${baseUrl}${ep.path}'</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python">${copyBtn}<pre class="code-block">import requests
-
-response = requests.get("${baseUrl}${ep.path}")
-print(response.json())</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript">${copyBtn}<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");
-const data = await response.json();
-console.log(data);</pre></div>`;
+    html += `<div class="code-panel active" data-code="curl"><pre class="code-block">No code examples available for this endpoint.</pre></div>`;
   }
 
   c.innerHTML = html;

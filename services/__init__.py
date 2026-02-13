@@ -54,9 +54,13 @@ class ServiceLoader:
             docs_module = importlib.import_module(f"services.{service_name}.docs")
             notes = getattr(docs_module, 'NOTES', [])
             examples = getattr(docs_module, 'EXAMPLES', [])
-            if notes or examples:
+            code_examples = getattr(docs_module, 'CODE_EXAMPLES', None)
+            if notes or examples or code_examples:
                 logger.debug(f"  docs: {len(examples)} examples, {len(notes)} notes")
-                return {'notes': notes, 'examples': examples}
+                result = {'notes': notes, 'examples': examples}
+                if code_examples:
+                    result['code_examples'] = code_examples
+                return result
         except ModuleNotFoundError:
             pass  # No docs.py — that's fine
         except Exception as e:

@@ -88,3 +88,50 @@ EXAMPLES = [
         "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "add_metadata": True, "embed_thumbnail": True},
     },
 ]
+
+CODE_EXAMPLES = {
+    "curl": '''curl -X POST '{base_url}/unidl' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "quality": "720p"
+}' --output video.mp4''',
+
+    "python": '''import requests
+
+response = requests.post(
+    "{base_url}/unidl",
+    json={
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "quality": "720p"
+    }
+)
+
+# Get filename from response headers
+cd = response.headers.get("Content-Disposition", "")
+filename = cd.split("filename=")[-1].strip('"') if "filename=" in cd else "video.mp4"
+with open(filename, "wb") as f:
+    f.write(response.content)
+print(f"Saved {{filename}} ({{len(response.content)}} bytes)")''',
+
+    "javascript": '''const response = await fetch("{base_url}/unidl", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "quality": "720p"
+  })
+});
+
+// Download the file
+const blob = await response.blob();
+const cd = response.headers.get("Content-Disposition") || "";
+const filename = cd.includes("filename=")
+  ? cd.split("filename=")[1].replace(/"/g, "")
+  : "video.mp4";
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = filename;
+a.click();''',
+}
