@@ -16,10 +16,6 @@ class TTSCache:
         self.hits = 0
         self.misses = 0
 
-        if config.CACHE_ENABLED:
-            config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            logger.info(f"TTS Cache enabled at: {config.CACHE_DIR}")
-
     def _get_cache_key(self, text: str, voice: str, rate: str, pitch: str, volume: str) -> str:
         """Generate unique cache key using MD5 hash."""
         content = f"{voice}:{rate}:{pitch}:{volume}:{text}"

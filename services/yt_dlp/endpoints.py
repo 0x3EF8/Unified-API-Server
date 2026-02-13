@@ -1,5 +1,6 @@
-"""YouTube API endpoints."""
+"""Download API endpoint."""
 
+import asyncio
 import hashlib
 import shutil
 import logging
@@ -10,13 +11,14 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 
+import yt_dlp
+
 from utils import check_internet
 from .models import DownloadRequest
-from .downloader import download_youtube_video
-from .status import status
+from .downloader import download_media
 from . import config
 
-router = APIRouter(prefix="/unidl", tags=["YouTube"])
+router = APIRouter(prefix="/unidl", tags=["Download"])
 logger = logging.getLogger(__name__)
 
 
@@ -32,20 +34,29 @@ MEDIA_TYPES = {
 
 
 def _cleanup_download(download_id: str):
-    """Delete download files and status entry after sending."""
+    """Delete download files after sending."""
     download_dir = config.OUTPUT_DIR / download_id
     if download_dir.exists():
         shutil.rmtree(download_dir, ignore_errors=True)
         logger.info(f"✓ Cleaned up: {download_id}")
-    status.delete(download_id)
 
 
-@router.post("/fetch")
-async def youtube_download(request: DownloadRequest, background_tasks: BackgroundTasks):
-    """Download YouTube video/audio and return the file directly."""
+@router.post("")
+async def unidl(request: DownloadRequest, background_tasks: BackgroundTasks):
+    """Download video or audio from any supported URL.
 
-    # Check internet
-    if not check_internet():
+    Send `{"url": "..."}` with optional quality/format settings.
+    Returns the file directly. Supports YouTube, Twitter/X, Reddit,
+    Instagram, TikTok, SoundCloud, Vimeo, and 1000+ other sites via yt-dlp.
+    """
+
+    if not request.url:
+        raise HTTPException(
+            status_code=400,
+            detail={"success": False, "message": "Provide a 'url' to download"},
+        )
+
+    if not await asyncio.to_thread(check_internet):
         logger.error("✗ No internet connection")
         raise HTTPException(
             status_code=503,
@@ -56,23 +67,23 @@ async def youtube_download(request: DownloadRequest, background_tasks: Backgroun
             },
         )
 
-    # Generate download ID
-    download_id = hashlib.md5(f"{request.url}{datetime.now()}".encode()).hexdigest()[:16]
+    download_id = hashlib.md5(f"{request.url}{datetime.now()}{id(request)}".encode()).hexdigest()[:16]
 
-    # Determine quality string for logging
     quality_str = request.quality.value if request.quality else "custom"
     if request.extract_audio:
         quality_str = "audio"
     elif request.format:
         quality_str = "custom format"
 
-    # Create status tracking
-    status.create(download_id, str(request.url), quality_str)
-
     logger.info(f"✓ Download started: {download_id} - {request.url} ({quality_str})")
 
-    # Download and wait for completion
-    file_path = await download_youtube_video(request, download_id)
+    try:
+        file_path = await download_media(request, download_id)
+    except yt_dlp.utils.DownloadError as e:
+        raise HTTPException(status_code=400, detail={"success": False, "message": f"Download error: {e}"})
+    except Exception as e:
+        logger.error(f"Download failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"success": False, "message": f"Download failed: {e}"})
 
     path = Path(file_path)
     filename = path.name
@@ -82,7 +93,6 @@ async def youtube_download(request: DownloadRequest, background_tasks: Backgroun
 
     logger.info(f"✓ Sending file: {filename} ({media_type})")
 
-    # Auto-delete files after response is sent
     background_tasks.add_task(_cleanup_download, download_id)
 
     return FileResponse(

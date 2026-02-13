@@ -1,6 +1,7 @@
 """TTS engine - Text-to-speech generation using Microsoft Edge."""
 
 import io
+import re
 import logging
 from typing import Optional
 
@@ -8,9 +9,45 @@ import edge_tts
 
 from . import config
 from .cache import cache
-from .voices import resolve_voice
 
 logger = logging.getLogger(__name__)
+
+# Patterns for rate/pitch/volume normalization
+_RATE_RE = re.compile(r'^([+-]?\d+)\s*%%*$')      # "+10%%" or "+10%" → "+10%"
+_PITCH_RE = re.compile(r'^([+-]?\d+)\s*(Hz)?$', re.IGNORECASE)  # "-2Hz" or "-2"
+_VOL_RE = re.compile(r'^([+-]?\d+)\s*%%*$')
+
+
+def _normalize_rate(val: str) -> str:
+    """Normalize rate: '+10', '+10%', '+10%%' all become '+10%'."""
+    val = val.strip()
+    m = _RATE_RE.match(val)
+    if m:
+        return f"{m.group(1)}%"
+    # bare number like "+10"
+    if re.match(r'^[+-]?\d+$', val):
+        return f"{val}%"
+    return val
+
+
+def _normalize_pitch(val: str) -> str:
+    """Normalize pitch: '-2', '-2Hz', '-2hz' all become '-2Hz'."""
+    val = val.strip()
+    m = _PITCH_RE.match(val)
+    if m:
+        return f"{m.group(1)}Hz"
+    return val
+
+
+def _normalize_volume(val: str) -> str:
+    """Normalize volume: '+20', '+20%', '+20%%' all become '+20%'."""
+    val = val.strip()
+    m = _VOL_RE.match(val)
+    if m:
+        return f"{m.group(1)}%"
+    if re.match(r'^[+-]?\d+$', val):
+        return f"{val}%"
+    return val
 
 
 async def generate_tts(
@@ -25,7 +62,10 @@ async def generate_tts(
     if voice is None:
         voice = config.DEFAULT_VOICE
     
-    voice = resolve_voice(voice)
+    # Normalize rate/pitch/volume (handles CMD escaping like +10%% → +10%)
+    rate = _normalize_rate(rate)
+    pitch = _normalize_pitch(pitch)
+    volume = _normalize_volume(volume)
     
     # Check cache first
     cached = cache.get(text, voice, rate, pitch, volume)

@@ -1,4 +1,4 @@
-"""Tests for YouTube download service."""
+"""Tests for download service."""
 
 import subprocess
 import tempfile
@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from services.yt_dlp import config as yt_config
-from services.yt_dlp.utils import validate_youtube_url, check_ffmpeg
+from services.yt_dlp.utils import validate_download_url, check_ffmpeg
 
 
 # ── YouTube Fixtures ──────────────────────────────────────────────────
@@ -25,15 +25,6 @@ def temp_download_dir():
     yield temp_dir
     yt_config.OUTPUT_DIR = original
     shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-@pytest.fixture(autouse=True)
-def reset_download_status():
-    """Reset download status tracker before each test."""
-    from services.yt_dlp.status import status
-    status.downloads.clear()
-    yield
-    status.downloads.clear()
 
 
 @pytest.fixture
@@ -88,7 +79,7 @@ def test_youtube_download_returns_file(
     mock_ytdlp
 ):
     """Test successful download returns a file."""
-    response = test_client.post("/unidl/fetch", json=sample_download_request)
+    response = test_client.post("/unidl", json=sample_download_request)
 
     assert response.status_code == 200
     assert response.headers["content-type"] in ["video/mp4", "application/octet-stream"]
@@ -98,8 +89,8 @@ def test_youtube_download_returns_file(
 @pytest.mark.unit
 def test_youtube_download_invalid_url(test_client: TestClient, mock_internet_check):
     """Test download fails with invalid URL."""
-    response = test_client.post("/unidl/fetch", json={
-        "url": "https://vimeo.com/123456",
+    response = test_client.post("/unidl", json={
+        "url": "ftp://invalid-scheme.com/video",
         "quality": "720p"
     })
 
@@ -110,7 +101,7 @@ def test_youtube_download_invalid_url(test_client: TestClient, mock_internet_che
 def test_youtube_download_no_internet(test_client: TestClient):
     """Test download fails when no internet connection."""
     with patch('services.yt_dlp.endpoints.check_internet', return_value=False):
-        response = test_client.post("/unidl/fetch", json={
+        response = test_client.post("/unidl", json={
             "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             "quality": "720p"
         })
@@ -128,7 +119,7 @@ def test_youtube_download_quality_options(
     qualities = ["1080p", "720p", "480p", "audio", "best"]
 
     for quality in qualities:
-        response = test_client.post("/unidl/fetch", json={
+        response = test_client.post("/unidl", json={
             "url": "https://www.youtube.com/watch?v=test123",
             "quality": quality
         })
@@ -138,34 +129,13 @@ def test_youtube_download_quality_options(
 
 
 @pytest.mark.unit
-def test_youtube_download_creates_tracking(
-    test_client: TestClient,
-    mock_internet_check,
-    mock_ytdlp
-):
-    """Test download creates tracking entry (auto-cleaned after response)."""
-    from services.yt_dlp.status import status
-
-    # Patch cleanup so we can inspect tracking before it's deleted
-    with patch('services.yt_dlp.endpoints._cleanup_download'):
-        response = test_client.post("/unidl/fetch", json={
-            "url": "https://www.youtube.com/watch?v=test123",
-            "quality": "720p"
-        })
-
-        assert response.status_code == 200
-        all_downloads = status.list_all()
-        assert len(all_downloads) >= 1
-
-
-@pytest.mark.unit
 def test_youtube_download_audio_extract(
     test_client: TestClient,
     mock_internet_check,
     mock_ytdlp
 ):
     """Test download with audio extraction returns a file."""
-    response = test_client.post("/unidl/fetch", json={
+    response = test_client.post("/unidl", json={
         "url": "https://www.youtube.com/watch?v=test123",
         "extract_audio": True,
         "audio_format": "mp3",
@@ -183,7 +153,7 @@ def test_youtube_download_has_filename_header(
     mock_ytdlp
 ):
     """Test download response includes content-disposition with filename."""
-    response = test_client.post("/unidl/fetch", json={
+    response = test_client.post("/unidl", json={
         "url": "https://www.youtube.com/watch?v=test123",
         "quality": "720p"
     })
@@ -197,79 +167,85 @@ def test_youtube_download_has_filename_header(
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_valid():
-    """Test validation accepts valid YouTube URLs."""
+def test_validate_download_url_valid():
+    """Test validation accepts valid HTTP/HTTPS URLs."""
     valid_urls = [
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
         "https://youtu.be/dQw4w9WgXcQ",
+        "https://twitter.com/user/status/123",
+        "https://www.reddit.com/r/test/comments/abc/test",
+        "https://vimeo.com/123456",
+        "https://www.instagram.com/p/abc123",
+        "https://www.tiktok.com/@user/video/123",
+        "https://soundcloud.com/artist/track",
         "http://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ]
     for url in valid_urls:
-        assert validate_youtube_url(url) is True, f"Failed for: {url}"
+        assert validate_download_url(url) is True, f"Failed for: {url}"
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_invalid():
+def test_validate_download_url_invalid():
     """Test validation rejects invalid URLs."""
     invalid_urls = [
-        "https://vimeo.com/123456",
-        "https://example.com/video",
         "not a url",
         "",
         None,
         "ftp://youtube.com/watch?v=test",
         "youtube.com/watch?v=test",
+        "just-text",
     ]
     for url in invalid_urls:
-        assert validate_youtube_url(url) is False, f"Should fail for: {url}"
+        assert validate_download_url(url) is False, f"Should fail for: {url}"
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_edge_cases():
+def test_validate_download_url_edge_cases():
     """Test URL validation edge cases."""
-    assert validate_youtube_url("") is False
-    assert validate_youtube_url("   ") is False
-    assert validate_youtube_url(12345) is False
-    assert validate_youtube_url([]) is False
-    assert validate_youtube_url({}) is False
+    assert validate_download_url("") is False
+    assert validate_download_url("   ") is False
+    assert validate_download_url(12345) is False
+    assert validate_download_url([]) is False
+    assert validate_download_url({}) is False
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_with_params():
+def test_validate_download_url_with_params():
     """Test validation works with URL parameters."""
     urls_with_params = [
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s",
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLtest",
         "https://youtu.be/dQw4w9WgXcQ?t=10",
+        "https://twitter.com/user/status/123?s=20",
     ]
     for url in urls_with_params:
-        assert validate_youtube_url(url) is True
+        assert validate_download_url(url) is True
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_playlists():
-    """Test validation accepts YouTube playlist URLs."""
+def test_validate_download_url_playlists():
+    """Test validation accepts playlist URLs."""
     playlist_urls = [
         "https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf",
         "https://youtube.com/playlist?list=PLtest123",
+        "https://soundcloud.com/artist/sets/playlist-name",
     ]
     for url in playlist_urls:
-        assert validate_youtube_url(url) is True
+        assert validate_download_url(url) is True
 
 
 @pytest.mark.unit
-def test_validate_youtube_url_malformed():
+def test_validate_download_url_malformed():
     """Test validation rejects malformed URLs."""
     malformed_urls = [
         "htp://youtube.com/watch?v=test",
-        "https://youtube",
+        "https://noperiod",
         "https:/youtube.com/watch?v=test",
         "youtube.com/watch?v=test",
     ]
     for url in malformed_urls:
-        assert validate_youtube_url(url) is False
+        assert validate_download_url(url) is False
 
 
 # ── FFmpeg Check Tests ───────────────────────────────────────────────

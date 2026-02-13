@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 @pytest.mark.unit
 def test_qr_generate_png(test_client: TestClient):
     """Test QR code generation in PNG format."""
-    response = test_client.post("/qr/generate", json={
+    response = test_client.post("/qr", json={
         "data": "https://example.com",
         "format": "png",
         "micro": False
@@ -21,7 +21,7 @@ def test_qr_generate_png(test_client: TestClient):
 @pytest.mark.unit
 def test_qr_generate_svg(test_client: TestClient):
     """Test QR code generation in SVG format."""
-    response = test_client.post("/qr/generate", json={
+    response = test_client.post("/qr", json={
         "data": "https://example.com",
         "format": "svg",
         "micro": False
@@ -34,7 +34,7 @@ def test_qr_generate_svg(test_client: TestClient):
 @pytest.mark.unit
 def test_qr_empty_data_validation(test_client: TestClient):
     """Test QR generation fails with empty data."""
-    response = test_client.post("/qr/generate", json={
+    response = test_client.post("/qr", json={
         "data": ""
     })
     assert response.status_code == 422
@@ -43,7 +43,7 @@ def test_qr_empty_data_validation(test_client: TestClient):
 @pytest.mark.unit
 def test_qr_wifi(test_client: TestClient):
     """Test WiFi QR code generation."""
-    response = test_client.post("/qr/wifi", json={
+    response = test_client.post("/qr", json={
         "ssid": "TestNetwork",
         "password": "secret123",
         "security": "WPA"
@@ -57,7 +57,7 @@ def test_qr_wifi(test_client: TestClient):
 @pytest.mark.unit
 def test_qr_custom_colors(test_client: TestClient):
     """Test QR code with custom colors."""
-    response = test_client.post("/qr/generate", json={
+    response = test_client.post("/qr", json={
         "data": "colored",
         "dark": "#FF0000",
         "light": "#00FF00",
@@ -70,7 +70,7 @@ def test_qr_custom_colors(test_client: TestClient):
 @pytest.mark.unit
 def test_qr_metadata_headers(test_client: TestClient):
     """Test QR response includes metadata headers."""
-    response = test_client.post("/qr/generate", json={
+    response = test_client.post("/qr", json={
         "data": "metadata test"
     })
     assert response.status_code == 200

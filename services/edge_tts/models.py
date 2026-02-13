@@ -7,18 +7,24 @@ from . import config
 
 
 class TTSRequest(BaseModel):
-    """TTS generation request with full edge-tts configuration."""
-    text: str
+    """Unified TTS request.
+
+    - Set `list_voices: true` to list available voices (no other fields needed).
+    - Set `text` to generate audio with optional voice/rate/pitch/volume.
+    """
+    text: Optional[str] = None
     voice: Optional[str] = None
     rate: Optional[str] = "+0%"
     pitch: Optional[str] = "+0Hz"
     volume: Optional[str] = "+0%"
+    list_voices: bool = False
 
     @field_validator('text')
     @classmethod
     def validate_text(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Text is required")
-        if len(v) > config.MAX_TEXT_LENGTH:
-            raise ValueError(f"Text too long. Maximum {config.MAX_TEXT_LENGTH} characters")
+        if v is not None:
+            if not v.strip():
+                raise ValueError("Text cannot be empty")
+            if len(v) > config.MAX_TEXT_LENGTH:
+                raise ValueError(f"Text too long. Maximum {config.MAX_TEXT_LENGTH} characters")
         return v

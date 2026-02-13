@@ -59,7 +59,7 @@ def sample_tts_request():
 @pytest.mark.unit
 def test_tts_generate_post_success(test_client: TestClient, sample_tts_request, mock_edge_tts):
     """Test successful TTS generation via POST."""
-    response = test_client.post("/tts/generate", json=sample_tts_request)
+    response = test_client.post("/tts", json=sample_tts_request)
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/mpeg"
@@ -72,7 +72,7 @@ def test_tts_generate_post_success(test_client: TestClient, sample_tts_request, 
 @pytest.mark.unit
 def test_tts_empty_text_validation(test_client: TestClient):
     """Test TTS generation fails with empty text."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "",
         "voice": "en-US-GuyNeural"
     })
@@ -85,7 +85,7 @@ def test_tts_text_too_long_validation(test_client: TestClient):
     """Test TTS generation fails with text exceeding max length."""
     long_text = "A" * 10000
 
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": long_text,
         "voice": "en-US-GuyNeural"
     })
@@ -94,11 +94,11 @@ def test_tts_text_too_long_validation(test_client: TestClient):
 
 
 @pytest.mark.unit
-def test_tts_voice_shortcut(test_client: TestClient, mock_edge_tts):
-    """Test TTS generation with voice shortcut."""
-    response = test_client.post("/tts/generate", json={
+def test_tts_full_voice_id(test_client: TestClient, mock_edge_tts):
+    """Test TTS generation with full voice ID."""
+    response = test_client.post("/tts", json={
         "text": "Hello",
-        "voice": "ana"
+        "voice": "en-US-AnaNeural"
     })
 
     assert response.status_code == 200
@@ -108,7 +108,7 @@ def test_tts_voice_shortcut(test_client: TestClient, mock_edge_tts):
 @pytest.mark.unit
 def test_tts_default_voice(test_client: TestClient, mock_edge_tts):
     """Test TTS generation uses default voice when not specified."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "Hello world"
     })
 
@@ -119,7 +119,7 @@ def test_tts_default_voice(test_client: TestClient, mock_edge_tts):
 @pytest.mark.unit
 def test_tts_rate_adjustment(test_client: TestClient, mock_edge_tts):
     """Test TTS generation with rate adjustment."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "Hello world",
         "voice": "ana",
         "rate": "+20%"
@@ -132,7 +132,7 @@ def test_tts_rate_adjustment(test_client: TestClient, mock_edge_tts):
 @pytest.mark.unit
 def test_tts_pitch_adjustment(test_client: TestClient, mock_edge_tts):
     """Test TTS generation with pitch adjustment."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "Hello world",
         "voice": "ana",
         "pitch": "+5Hz"
@@ -145,7 +145,7 @@ def test_tts_pitch_adjustment(test_client: TestClient, mock_edge_tts):
 @pytest.mark.unit
 def test_tts_metadata_headers(test_client: TestClient, mock_edge_tts):
     """Test TTS response includes all metadata headers."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "Test message",
         "voice": "ana",
         "rate": "+10%",
@@ -170,7 +170,7 @@ def test_tts_metadata_headers(test_client: TestClient, mock_edge_tts):
 @pytest.mark.unit
 def test_tts_cache_control_header(test_client: TestClient, mock_edge_tts):
     """Test TTS response includes cache control header."""
-    response = test_client.post("/tts/generate", json={
+    response = test_client.post("/tts", json={
         "text": "Cached content",
         "voice": "ana"
     })
@@ -184,7 +184,7 @@ def test_tts_cache_control_header(test_client: TestClient, mock_edge_tts):
 def test_tts_invalid_json_post(test_client: TestClient):
     """Test POST endpoint handles invalid JSON."""
     response = test_client.post(
-        "/tts/generate",
+        "/tts",
         data="invalid json",
         headers={"Content-Type": "application/json"}
     )
@@ -198,7 +198,7 @@ def test_tts_concurrent_requests(test_client: TestClient, mock_edge_tts):
     import concurrent.futures
 
     def make_request():
-        return test_client.post("/tts/generate", json={
+        return test_client.post("/tts", json={
             "text": "Concurrent test",
             "voice": "ana"
         })

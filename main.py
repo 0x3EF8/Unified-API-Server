@@ -3,6 +3,7 @@
 Drop service folders into services/ and they're auto-loaded.
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -84,7 +85,7 @@ async def root():
 async def health():
     """Health check."""
     uptime = (datetime.now() - startup_time).total_seconds() if startup_time else 0
-    internet_ok = check_internet()
+    internet_ok = await asyncio.to_thread(check_internet)
     service_info = get_loaded_services()
     return {
         "status": "healthy" if internet_ok else "degraded",

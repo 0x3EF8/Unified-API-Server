@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 
 import segno
 
-from .models import QRRequest, QRFormat
+from .models import QRRequest, QRFormat, QRErrorCorrection
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,15 @@ def generate_qr_code(request: QRRequest) -> Tuple[bytes, dict]:
             qr.save(buffer, kind='pdf', **save_kwargs)
             content_type = 'application/pdf'
         elif request.format == QRFormat.EPS:
-            qr.save(buffer, kind='eps', **save_kwargs)
+            str_buffer = io.StringIO()
+            qr.save(str_buffer, kind='eps', **save_kwargs)
+            buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
             content_type = 'application/postscript'
         elif request.format == QRFormat.TXT:
-            qr.save(buffer, kind='txt', **save_kwargs)
+            txt_kwargs = {k: v for k, v in save_kwargs.items() if k in ('border',)}
+            str_buffer = io.StringIO()
+            qr.save(str_buffer, kind='txt', **txt_kwargs)
+            buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
             content_type = 'text/plain'
         else:
             raise ValueError(f"Unsupported format: {request.format}")
@@ -96,17 +101,27 @@ def generate_wifi_qr(
     border: int,
     dark: str,
     light: str,
-    output_format: QRFormat
+    output_format: QRFormat,
+    error_correction: Optional[QRErrorCorrection] = None,
+    micro: Optional[bool] = None,
+    boost_error: Optional[bool] = True,
 ) -> Tuple[bytes, dict]:
     """Generate WiFi QR code."""
     try:
         from segno import helpers
 
-        wifi = helpers.make_wifi(
+        wifi_data = helpers.make_wifi_data(
             ssid=ssid,
             password=password,
             security=security.upper() if security and security.lower() != 'nopass' else None,
             hidden=hidden
+        )
+
+        wifi = segno.make(
+            wifi_data,
+            error=error_correction.value if error_correction else None,
+            micro=micro,
+            boost_error=boost_error,
         )
 
         save_kwargs = {
@@ -133,6 +148,17 @@ def generate_wifi_qr(
         elif output_format == QRFormat.PDF:
             wifi.save(buffer, kind='pdf', **save_kwargs)
             content_type = 'application/pdf'
+        elif output_format == QRFormat.EPS:
+            str_buffer = io.StringIO()
+            wifi.save(str_buffer, kind='eps', **save_kwargs)
+            buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
+            content_type = 'application/postscript'
+        elif output_format == QRFormat.TXT:
+            txt_kwargs = {k: v for k, v in save_kwargs.items() if k in ('border',)}
+            str_buffer = io.StringIO()
+            wifi.save(str_buffer, kind='txt', **txt_kwargs)
+            buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
+            content_type = 'text/plain'
         else:
             wifi.save(buffer, kind='png', **save_kwargs)
             content_type = 'image/png'

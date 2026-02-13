@@ -5,13 +5,13 @@ VOICE_SHORTCUTS = {
     "ana": "en-US-AnaNeural",
     "aria": "en-US-AriaNeural",
     "jenny": "en-US-JennyNeural",
-    "sara": "en-US-SaraNeural",
+    "ava": "en-US-AvaNeural",
     "emma": "en-GB-SoniaNeural",
     
     # English - Male
     "guy": "en-US-GuyNeural",
-    "davis": "en-US-DavisNeural",
-    "tony": "en-US-TonyNeural",
+    "andrew": "en-US-AndrewNeural",
+    "brian": "en-US-BrianNeural",
     
     # Asian - Female
     "nanami": "ja-JP-NanamiNeural",

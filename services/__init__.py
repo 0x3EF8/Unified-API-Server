@@ -3,7 +3,6 @@
 Drop a service folder into services/ with an endpoints.py exporting 'router'.
 """
 
-import sys
 import importlib
 import logging
 from pathlib import Path
@@ -171,6 +170,4 @@ def load_service_routers() -> List[APIRouter]:
 def get_loaded_services() -> Dict[str, Any]:
     """Get loaded service info."""
     return _service_loader.get_service_info()
-
-
 

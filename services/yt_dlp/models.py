@@ -1,4 +1,4 @@
-"""YouTube download models."""
+"""Download models."""
 
 from typing import Optional, List
 from pydantic import BaseModel, HttpUrl, field_validator
@@ -31,9 +31,8 @@ class VideoCodec(str, Enum):
 
 
 class DownloadRequest(BaseModel):
-    """YouTube download request with full yt-dlp configuration."""
-    # Required
-    url: HttpUrl
+    """Download request model. Send `{"url": "..."}` with optional settings."""
+    url: Optional[HttpUrl] = None
 
     # Basic quality settings
     quality: Optional[VideoQuality] = VideoQuality.VIDEO_720P
@@ -77,11 +76,6 @@ class DownloadRequest(BaseModel):
     # Network settings
     proxy: Optional[str] = None
 
-    # Authentication
-    username: Optional[str] = None
-    password: Optional[str] = None
-    cookies_from_browser: Optional[str] = None
-
     # Advanced
     prefer_free_formats: bool = True
     live_from_start: bool = False
@@ -89,8 +83,10 @@ class DownloadRequest(BaseModel):
 
     @field_validator('url')
     @classmethod
-    def validate_youtube_url(cls, v):
-        from .utils import validate_youtube_url
-        if not validate_youtube_url(str(v)):
-            raise ValueError("Only YouTube URLs are supported")
+    def validate_url(cls, v):
+        if v is None:
+            return v
+        from .utils import validate_download_url
+        if not validate_download_url(str(v)):
+            raise ValueError("Invalid URL. Provide a valid HTTP/HTTPS link")
         return v

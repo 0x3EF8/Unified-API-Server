@@ -131,11 +131,12 @@ def test_docs_disabled(test_client: TestClient):
 @pytest.mark.unit
 def test_check_internet_success():
     """Test internet check returns True when connected."""
-    with patch('socket.create_connection') as mock_conn:
-        mock_conn.return_value = Mock()
+    mock_socket = Mock()
+    with patch('socket.create_connection', return_value=mock_socket) as mock_conn:
         result = check_internet()
         assert result is True
         mock_conn.assert_called_once()
+        mock_socket.close.assert_called_once()
 
 
 @pytest.mark.unit
@@ -157,9 +158,10 @@ def test_check_internet_timeout():
 @pytest.mark.unit
 def test_check_internet_custom_timeout():
     """Test internet check uses custom timeout."""
-    with patch('socket.create_connection') as mock_conn:
-        mock_conn.return_value = Mock()
+    mock_socket = Mock()
+    with patch('socket.create_connection', return_value=mock_socket) as mock_conn:
         check_internet(timeout=2)
 
         call_args = mock_conn.call_args
         assert call_args[1]['timeout'] == 2
+        mock_socket.close.assert_called_once()

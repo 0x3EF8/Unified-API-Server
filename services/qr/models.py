@@ -21,24 +21,45 @@ class QRFormat(str, Enum):
 
 
 class QRRequest(BaseModel):
-    """QR code generation request with full segno configuration."""
-    data: str
+    """Unified QR code request.
+
+    - Set `data` to generate a standard QR code.
+    - Set `ssid` to generate a WiFi QR code.
+    """
+    # Standard QR fields
+    data: Optional[str] = None
+
+    # WiFi QR fields
+    ssid: Optional[str] = None
+    password: Optional[str] = None
+    security: Optional[str] = "WPA"
+    hidden: Optional[bool] = False
+
+    # Shared configuration
     scale: Optional[int] = 10
     border: Optional[int] = 4
     dark: Optional[str] = "black"
     light: Optional[str] = "white"
     error_correction: Optional[QRErrorCorrection] = QRErrorCorrection.M
     format: Optional[QRFormat] = QRFormat.PNG
-    micro: Optional[bool] = True
+    micro: Optional[bool] = None
     boost_error: Optional[bool] = True
 
     @field_validator('data')
     @classmethod
     def validate_data(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Data is required")
-        if len(v) > 4296:
-            raise ValueError("Data too long. Maximum 4296 characters for QR codes")
+        if v is not None:
+            if not v.strip():
+                raise ValueError("Data cannot be empty")
+            if len(v) > 4296:
+                raise ValueError("Data too long. Maximum 4296 characters for QR codes")
+        return v
+
+    @field_validator('ssid')
+    @classmethod
+    def validate_ssid(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("SSID cannot be empty")
         return v
 
     @field_validator('scale')
@@ -53,24 +74,4 @@ class QRRequest(BaseModel):
     def validate_border(cls, v):
         if v is not None and v < 0:
             raise ValueError("Border cannot be negative")
-        return v
-
-
-class WiFiRequest(BaseModel):
-    """WiFi QR code generation request."""
-    ssid: str
-    password: Optional[str] = None
-    security: Optional[str] = "WPA"
-    hidden: Optional[bool] = False
-    scale: Optional[int] = 10
-    border: Optional[int] = 4
-    dark: Optional[str] = "black"
-    light: Optional[str] = "white"
-    format: Optional[QRFormat] = QRFormat.PNG
-
-    @field_validator('ssid')
-    @classmethod
-    def validate_ssid(cls, v):
-        if not v or not v.strip():
-            raise ValueError("SSID is required")
         return v

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import config
 from .models import DownloadRequest, VideoQuality
-from .utils import FFMPEG_AVAILABLE
+from .utils import ffmpeg_available
 from .formats import get_quality_format
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 def build_ydl_opts(
     request: DownloadRequest,
     output_dir: Path,
-    progress_hook: callable,
 ) -> Dict[str, Any]:
     """Build yt-dlp options dictionary from DownloadRequest."""
 
@@ -25,19 +24,23 @@ def build_ydl_opts(
         "no_warnings": True,
         "retries": config.RETRY_ATTEMPTS,
         "socket_timeout": config.SOCKET_TIMEOUT,
-        "concurrent_fragment_downloads": config.CONCURRENT_FRAGMENTS if FFMPEG_AVAILABLE else 4,
+        "concurrent_fragment_downloads": config.CONCURRENT_FRAGMENTS if ffmpeg_available() else 4,
         "ignoreerrors": False,
         "no_color": True,
         "extractor_retries": 3,
         "fragment_retries": 10,
         "file_access_retries": 3,
         "nocheckcertificate": False,
-        "progress_hooks": [progress_hook],
     }
 
-    # Output template
+    # Output template (sanitized to prevent path traversal)
     if request.output_template:
-        opts["outtmpl"] = str(output_dir / request.output_template)
+        template = request.output_template.replace("..", "").lstrip("/").lstrip("\\")
+        resolved = (output_dir / template).resolve()
+        if not str(resolved).startswith(str(output_dir.resolve())):
+            logger.warning(f"Blocked path traversal attempt: {request.output_template}")
+            template = "%(title)s.%(ext)s"
+        opts["outtmpl"] = str(output_dir / template)
     else:
         opts["outtmpl"] = str(output_dir / "%(title)s.%(ext)s")
 
@@ -80,16 +83,22 @@ def build_ydl_opts(
         else:
             opts["subtitleslangs"] = ["en"]
 
-        if request.embed_subtitles and FFMPEG_AVAILABLE:
+        if request.embed_subtitles and ffmpeg_available():
             opts["postprocessors"] = opts.get("postprocessors", [])
             opts["postprocessors"].append({"key": "FFmpegEmbedSubtitle"})
 
     # Metadata & Thumbnails
-    if request.embed_thumbnail and FFMPEG_AVAILABLE:
+    if request.embed_thumbnail and ffmpeg_available():
         opts["writethumbnail"] = True
         opts["postprocessors"] = opts.get("postprocessors", [])
-        opts["postprocessors"].append({"key": "FFmpegThumbnailsConvertor"})
-        opts["postprocessors"].append({"key": "EmbedThumbnail"})
+        opts["postprocessors"].append({
+            "key": "FFmpegThumbnailsConvertor",
+            "format": "png",
+        })
+        opts["postprocessors"].append({
+            "key": "EmbedThumbnail",
+            "already_have_thumbnail": False,
+        })
 
     if request.add_metadata:
         opts["postprocessors"] = opts.get("postprocessors", [])
@@ -134,16 +143,6 @@ def build_ydl_opts(
     # Network settings
     if request.proxy:
         opts["proxy"] = request.proxy
-
-    # Authentication
-    if request.username:
-        opts["username"] = request.username
-
-    if request.password:
-        opts["password"] = request.password
-
-    if request.cookies_from_browser:
-        opts["cookiesfrombrowser"] = (request.cookies_from_browser,)
 
     # Advanced options
     if request.prefer_free_formats:

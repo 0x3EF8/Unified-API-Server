@@ -1,6 +1,7 @@
-"""YouTube service utilities — FFmpeg detection and URL validation."""
+"""Download service utilities — FFmpeg detection and URL validation."""
 
 import os
+import functools
 import subprocess
 import logging
 from pathlib import Path
@@ -31,21 +32,24 @@ def check_ffmpeg() -> bool:
         return False
 
 
-def validate_youtube_url(url: str) -> bool:
-    """Validate YouTube URL format (youtube.com and youtu.be)."""
+def validate_download_url(url: str) -> bool:
+    """Validate that the URL is a valid HTTP/HTTPS link for downloading."""
     if not url or not isinstance(url, str):
         return False
     try:
         parsed = urlparse(url)
         if not parsed.scheme or parsed.scheme not in ["http", "https"]:
             return False
-        if not parsed.netloc:
-            return False
-        if "youtube.com" not in parsed.netloc and "youtu.be" not in parsed.netloc:
+        if not parsed.netloc or "." not in parsed.netloc:
             return False
         return True
     except Exception:
         return False
 
 
-FFMPEG_AVAILABLE = check_ffmpeg()
+@functools.lru_cache(maxsize=1)
+def ffmpeg_available() -> bool:
+    """Check FFmpeg availability (cached for server lifetime)."""
+    result = check_ffmpeg()
+    logger.info(f"FFmpeg available: {result}")
+    return result
