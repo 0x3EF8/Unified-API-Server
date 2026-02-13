@@ -5,8 +5,8 @@ Drop service folders into services/ and they're auto-loaded.
 
 import asyncio
 import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -102,7 +102,7 @@ async def health():
 
 @app.get("/playground", response_class=HTMLResponse)
 async def playground():
-    """Built-in API testing playground."""
+    """Built-in API playground for testing endpoints."""
     html_path = Path(__file__).parent / "static" / "playground.html"
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 

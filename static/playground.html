@@ -5,390 +5,660 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Unified API Server — Playground</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a3a;--primary:#6366f1;--primary-hover:#818cf8;--text:#e2e8f0;--text-dim:#94a3b8;--success:#22c55e;--error:#ef4444;--warning:#f59e0b;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4)}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-a{color:var(--primary);text-decoration:none}
-a:hover{color:var(--primary-hover)}
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --text2: #8888a0;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
 
-/* Header */
-.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
-.header h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.header .version{font-size:11px;background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:20px;color:var(--text-dim)}
-.header .status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim)}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  /* ── Header ──────────────────────────────────── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header h1 span.logo { font-size: 22px; }
+  .health-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .health-badge.ok { background: rgba(34,197,94,0.15); color: var(--green); }
+  .health-badge.bad { background: rgba(239,68,68,0.15); color: var(--red); }
+  .health-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2s infinite;
+  }
+  .health-badge.ok .dot { background: var(--green); }
+  .health-badge.bad .dot { background: var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-/* Tabs */
-.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px}
-.tab{padding:12px 24px;font-size:14px;font-weight:500;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
-.tab .badge{font-size:10px;background:var(--primary);color:#fff;padding:1px 6px;border-radius:10px;margin-left:6px}
+  /* ── Layout ──────────────────────────────────── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
-/* Layout */
-.container{max-width:1100px;margin:0 auto;padding:24px}
-.panel{display:none}
-.panel.active{display:block}
+  /* ── Tabs ────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { background: var(--accent); color: white; }
+  .tab .method {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+  }
 
-/* Cards */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
-.card h3{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.card h3 .method{font-size:11px;font-weight:700;background:#6366f120;color:var(--primary);padding:2px 8px;border-radius:4px;letter-spacing:.5px}
+  /* ── Panels ──────────────────────────────────── */
+  .panel { display: none; }
+  .panel.active { display: block; }
 
-/* Forms */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.form-group{display:flex;flex-direction:column;gap:6px}
-.form-group.full{grid-column:1/-1}
-.form-group label{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
-.form-group input,.form-group select,.form-group textarea{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:.2s}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px #6366f120}
-.form-group textarea{resize:vertical;min-height:80px}
-.form-group input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary)}
-.form-group .hint{font-size:11px;color:var(--text-dim)}
-.check-row{display:flex;align-items:center;gap:8px;flex-direction:row}
-.check-row label{text-transform:none;font-weight:400;font-size:13px}
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 14px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-/* Buttons */
-.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:.2s;font-family:inherit}
-.btn-primary{background:var(--primary);color:#fff}
-.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 4px 16px #6366f140}
-.btn-primary:active{transform:translateY(0)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.btn-secondary:hover{border-color:var(--primary)}
-.btn-group{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+  /* ── Form elements ──────────────────────────── */
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  input[type="color"] {
+    padding: 4px;
+    height: 42px;
+    cursor: pointer;
+  }
 
-/* Output */
-.output{margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none}
-.output.visible{display:block}
-.output-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:13px}
-.output-status{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
-.output-status.s200{background:#22c55e20;color:var(--success)}
-.output-status.s400,.output-status.s422{background:#f59e0b20;color:var(--warning)}
-.output-status.s500,.output-status.s503{background:#ef444420;color:var(--error)}
-.output-body{padding:16px}
-.output-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.output-meta .tag{font-size:11px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:20px;color:var(--text-dim)}
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
-/* Audio/Image preview */
-.preview-area{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px}
-.preview-area audio{width:100%;max-width:500px}
-.preview-area img{max-width:100%;max-height:400px;border-radius:8px;background:#fff}
-.preview-area .txt-preview{background:var(--surface);padding:16px;border-radius:8px;font-family:'Courier New',monospace;font-size:12px;white-space:pre;overflow-x:auto;max-width:100%;line-height:1}
-.download-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--primary);color:#fff;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
-.download-link:hover{background:var(--primary-hover);color:#fff}
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+  .checkbox-row label {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text);
+  }
 
-/* Loading */
-.spinner{display:none;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading .spinner{display:block}
-.loading .btn-text{display:none}
+  /* ── Buttons ─────────────────────────────────── */
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--border); }
 
-/* Progress */
-.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:12px;display:none}
-.progress-bar.active{display:block}
-.progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--primary),#a78bfa);border-radius:2px;width:0;transition:width .3s;animation:indeterminate 1.5s infinite}
-@keyframes indeterminate{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+  .action-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
 
-/* Voice list */
-.voice-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
-.voice-table th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-.voice-table td{padding:8px 12px;border-bottom:1px solid var(--border)}
-.voice-table tr:hover td{background:var(--surface)}
-.voice-filter{margin-bottom:12px}
+  /* ── Response area ──────────────────────────── */
+  .response-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .response-header {
+    padding: 12px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .status-pill {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .status-pill.s2xx { background: rgba(34,197,94,0.15); color: var(--green); }
+  .status-pill.s4xx { background: rgba(239,68,68,0.15); color: var(--red); }
+  .status-pill.s5xx { background: rgba(239,68,68,0.15); color: var(--red); }
+  .response-body {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .response-body pre {
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
-/* Responsive */
-@media(max-width:700px){.form-grid{grid-template-columns:1fr}.tabs{overflow-x:auto}.tab{white-space:nowrap;padding:12px 16px}}
+  /* ── Preview areas ──────────────────────────── */
+  .preview-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 24px;
+    background: var(--surface2);
+    border-radius: 8px;
+  }
+  .preview-container img {
+    max-width: 100%;
+    max-height: 350px;
+    border-radius: 4px;
+  }
+  audio { width: 100%; margin-top: 12px; }
 
-/* Collapsible */
-.collapsible{cursor:pointer;user-select:none}
-.collapsible::after{content:'▸';margin-left:8px;font-size:12px;transition:transform .2s}
-.collapsible.open::after{transform:rotate(90deg)}
-.collapse-body{display:none;margin-top:12px}
-.collapse-body.open{display:block}
+  /* ── Loading ─────────────────────────────────── */
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Section separator */
-.separator{border:none;border-top:1px solid var(--border);margin:16px 0}
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .loading-overlay.active { display: flex; }
+  .loading-overlay .spinner { width: 40px; height: 40px; border-width: 4px; }
+  .loading-text { color: var(--text2); font-size: 14px; }
+
+  /* ── Headers table ──────────────────────────── */
+  .headers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  .headers-table th {
+    text-align: left;
+    padding: 6px 10px;
+    background: var(--surface2);
+    color: var(--text2);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .headers-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+  }
+  .headers-table td:first-child { color: var(--accent2); }
+
+  /* ── Misc ────────────────────────────────────── */
+  .hint { font-size: 12px; color: var(--text2); margin-top: -8px; margin-bottom: 12px; }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+  .section-toggle {
+    background: none;
+    border: none;
+    color: var(--accent2);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .section-toggle:hover { color: var(--accent); }
+  .collapsible { display: none; }
+  .collapsible.open { display: block; }
+  .file-info {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .file-info .name { font-weight: 600; }
+  .file-info .size { color: var(--text2); }
+
+  @media (max-width: 700px) {
+    .row-2, .row-3, .row-4 { grid-template-columns: 1fr; }
+    .tabs { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>Unified API Server</h1>
-  <span class="version">v1.0.0</span>
-  <div class="status">
-    <span class="status-dot" id="statusDot"></span>
-    <span id="statusText">Checking...</span>
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Processing request...</div>
+</div>
+
+<!-- Header -->
+<header>
+  <h1><span class="logo">⚡</span> Unified API Playground</h1>
+  <div class="health-badge bad" id="healthBadge">
+    <span class="dot"></span>
+    <span id="healthStatus">Checking...</span>
   </div>
-</div>
+</header>
 
-<div class="tabs">
-  <div class="tab active" data-tab="tts">🔊 Text-to-Speech</div>
-  <div class="tab" data-tab="qr">📱 QR Code</div>
-  <div class="tab" data-tab="dl">📥 Download</div>
-</div>
-
-<!-- ═══════════════ TTS ═══════════════ -->
 <div class="container">
-<div class="panel active" id="panel-tts">
-  <div class="card">
-    <h3><span class="method">POST</span> /tts — Generate Speech</h3>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>Text</label>
-        <textarea id="tts-text" placeholder="Enter text to convert to speech..." rows="3">Hello! This is a test of the Unified API Server text-to-speech service.</textarea>
-      </div>
-      <div class="form-group">
-        <label>Voice</label>
-        <select id="tts-voice">
-          <option value="">Default (en-US-AnaNeural)</option>
-          <option value="en-US-JennyNeural">Jenny (US Female)</option>
-          <option value="en-US-GuyNeural">Guy (US Male)</option>
-          <option value="en-US-AriaNeural">Aria (US Female)</option>
-          <option value="en-US-DavisNeural">Davis (US Male)</option>
-          <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
-          <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
-          <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
-          <option value="en-AU-WilliamNeural">William (AU Male)</option>
-          <option value="ja-JP-NanamiNeural">Nanami (Japanese)</option>
-          <option value="ko-KR-SunHiNeural">SunHi (Korean)</option>
-          <option value="zh-CN-XiaoxiaoNeural">Xiaoxiao (Chinese)</option>
-          <option value="es-ES-ElviraNeural">Elvira (Spanish)</option>
-          <option value="fr-FR-DeniseNeural">Denise (French)</option>
-          <option value="de-DE-KatjaNeural">Katja (German)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Rate (speed)</label>
-        <select id="tts-rate">
-          <option value="-50%">Very Slow (-50%)</option>
-          <option value="-30%">Slow (-30%)</option>
-          <option value="+0%" selected>Normal (+0%)</option>
-          <option value="+20%">Fast (+20%)</option>
-          <option value="+50%">Very Fast (+50%)</option>
-          <option value="+100%">Maximum (+100%)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Pitch</label>
-        <select id="tts-pitch">
-          <option value="-20Hz">Very Low (-20Hz)</option>
-          <option value="-10Hz">Low (-10Hz)</option>
-          <option value="+0Hz" selected>Normal (+0Hz)</option>
-          <option value="+10Hz">High (+10Hz)</option>
-          <option value="+20Hz">Very High (+20Hz)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Volume</label>
-        <select id="tts-volume">
-          <option value="-50%">Quiet (-50%)</option>
-          <option value="-25%">Soft (-25%)</option>
-          <option value="+0%" selected>Normal (+0%)</option>
-          <option value="+25%">Loud (+25%)</option>
-          <option value="+50%">Very Loud (+50%)</option>
-        </select>
-      </div>
-    </div>
-    <div class="btn-group">
-      <button class="btn btn-primary" id="tts-generate" onclick="generateTTS()">
-        <span class="spinner"></span>
-        <span class="btn-text">🔊 Generate Speech</span>
-      </button>
-      <button class="btn btn-secondary" onclick="listVoices()">📋 List All Voices</button>
-    </div>
-    <div class="progress-bar" id="tts-progress"><div class="fill"></div></div>
-    <div class="output" id="tts-output">
-      <div class="output-header">
-        <span class="output-status" id="tts-status-badge"></span>
-        <span id="tts-output-info"></span>
-      </div>
-      <div class="output-body">
-        <div class="output-meta" id="tts-meta"></div>
-        <div class="preview-area" id="tts-preview"></div>
-      </div>
-    </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('tts')">
+      <span class="method">POST</span> /tts
+    </button>
+    <button class="tab" onclick="switchTab('qr')">
+      <span class="method">POST</span> /qr
+    </button>
+    <button class="tab" onclick="switchTab('dl')">
+      <span class="method">POST</span> /unidl
+    </button>
   </div>
-</div>
 
-<!-- ═══════════════ QR ═══════════════ -->
-<div class="panel" id="panel-qr">
-  <div class="card">
-    <h3><span class="method">POST</span> /qr — Generate QR Code</h3>
+  <!-- ═══════ TTS Panel ═══════ -->
+  <div class="panel active" id="panel-tts">
+    <div class="card">
+      <h3>🎙️ Text-to-Speech</h3>
 
-    <!-- Mode toggle -->
-    <div class="form-grid" style="margin-bottom:16px">
-      <div class="form-group">
-        <label>Mode</label>
-        <select id="qr-mode" onchange="toggleQRMode()">
-          <option value="data">Standard QR</option>
-          <option value="wifi">WiFi QR</option>
-        </select>
-      </div>
-    </div>
+      <label for="tts-text">Text *</label>
+      <textarea id="tts-text" placeholder="Enter text to convert to speech..." rows="3">Hello! This is the Unified API Server text-to-speech playground. You can type any text here and listen to it.</textarea>
 
-    <!-- Standard fields -->
-    <div id="qr-standard-fields">
-      <div class="form-grid">
-        <div class="form-group full">
-          <label>Data</label>
-          <input type="text" id="qr-data" value="https://github.com/0x3EF8" placeholder="URL, text, or any data...">
+      <div class="row row-2">
+        <div>
+          <label for="tts-voice">Voice</label>
+          <select id="tts-voice">
+            <option value="">Default (en-US-AnaNeural)</option>
+            <option value="en-US-JennyNeural">Jenny (US Female)</option>
+            <option value="en-US-GuyNeural">Guy (US Male)</option>
+            <option value="en-US-AriaNeural">Aria (US Female)</option>
+            <option value="en-US-DavisNeural">Davis (US Male)</option>
+            <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
+            <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+            <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
+            <option value="en-AU-WilliamNeural">William (AU Male)</option>
+            <option value="ja-JP-NanamiNeural">Nanami (JP Female)</option>
+            <option value="ko-KR-SunHiNeural">SunHi (KR Female)</option>
+            <option value="zh-CN-XiaoxiaoNeural">Xiaoxiao (CN Female)</option>
+            <option value="es-ES-ElviraNeural">Elvira (ES Female)</option>
+            <option value="fr-FR-DeniseNeural">Denise (FR Female)</option>
+            <option value="de-DE-KatjaNeural">Katja (DE Female)</option>
+            <option value="pt-BR-FranciscaNeural">Francisca (BR Female)</option>
+            <option value="hi-IN-SwaraNeural">Swara (IN Female)</option>
+            <option value="ar-SA-ZariyahNeural">Zariyah (AR Female)</option>
+          </select>
+          <p class="hint">Or <a href="#" onclick="loadAllVoices(event)" style="color: var(--accent2)">load all 400+ voices</a></p>
         </div>
-      </div>
-    </div>
-
-    <!-- WiFi fields -->
-    <div id="qr-wifi-fields" style="display:none">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>SSID (Network Name)</label>
-          <input type="text" id="qr-ssid" placeholder="MyNetwork">
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="text" id="qr-password" placeholder="Password (leave empty for open)">
-        </div>
-        <div class="form-group">
-          <label>Security</label>
-          <select id="qr-security">
-            <option value="WPA">WPA/WPA2</option>
-            <option value="WEP">WEP</option>
-            <option value="nopass">Open (No Password)</option>
+        <div>
+          <label for="tts-rate">Rate</label>
+          <select id="tts-rate">
+            <option value="+0%">Normal (0%)</option>
+            <option value="-50%">Very Slow (-50%)</option>
+            <option value="-30%">Slow (-30%)</option>
+            <option value="-10%">Slightly Slow (-10%)</option>
+            <option value="+10%">Slightly Fast (+10%)</option>
+            <option value="+30%">Fast (+30%)</option>
+            <option value="+50%">Very Fast (+50%)</option>
+            <option value="+100%">Maximum (+100%)</option>
           </select>
         </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:24px">
-            <input type="checkbox" id="qr-hidden">
-            <label for="qr-hidden">Hidden Network</label>
+      </div>
+
+      <div class="row row-2">
+        <div>
+          <label for="tts-pitch">Pitch</label>
+          <select id="tts-pitch">
+            <option value="+0Hz">Normal (0Hz)</option>
+            <option value="-20Hz">Very Low (-20Hz)</option>
+            <option value="-10Hz">Low (-10Hz)</option>
+            <option value="+10Hz">High (+10Hz)</option>
+            <option value="+20Hz">Very High (+20Hz)</option>
+          </select>
+        </div>
+        <div>
+          <label for="tts-volume">Volume</label>
+          <select id="tts-volume">
+            <option value="+0%">Normal (0%)</option>
+            <option value="-50%">Very Quiet (-50%)</option>
+            <option value="-30%">Quiet (-30%)</option>
+            <option value="+30%">Loud (+30%)</option>
+            <option value="+50%">Very Loud (+50%)</option>
+            <option value="+100%">Maximum (+100%)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="generateTTS()">
+          ▶ Generate Speech
+        </button>
+        <button class="btn btn-secondary" onclick="listVoices()">
+          📋 List All Voices
+        </button>
+      </div>
+    </div>
+
+    <!-- TTS Result -->
+    <div id="tts-result" style="display:none">
+      <div class="card">
+        <h3>🔊 Audio Output</h3>
+        <audio id="tts-audio" controls></audio>
+        <div style="margin-top:12px" class="action-row">
+          <a id="tts-download" class="btn btn-secondary" download="speech.mp3">⬇ Download MP3</a>
+        </div>
+        <div id="tts-headers" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div id="tts-voices-result" style="display:none">
+      <div class="card">
+        <h3>📋 Available Voices</h3>
+        <div id="tts-voices-body" style="max-height:500px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ QR Panel ═══════ -->
+  <div class="panel" id="panel-qr">
+    <div class="card">
+      <h3>📱 QR Code Generator</h3>
+
+      <div class="row row-2" style="margin-bottom:12px">
+        <div class="checkbox-row">
+          <input type="radio" name="qr-mode" id="qr-mode-data" checked onchange="toggleQRMode()">
+          <label for="qr-mode-data">Standard QR</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="radio" name="qr-mode" id="qr-mode-wifi" onchange="toggleQRMode()">
+          <label for="qr-mode-wifi">WiFi QR</label>
+        </div>
+      </div>
+
+      <!-- Standard QR fields -->
+      <div id="qr-standard-fields">
+        <label for="qr-data">Data *</label>
+        <input type="text" id="qr-data" placeholder="URL, text, or any data to encode..." value="https://github.com/0x3EF8/Unified-API-Server">
+      </div>
+
+      <!-- WiFi QR fields -->
+      <div id="qr-wifi-fields" style="display:none">
+        <div class="row row-2">
+          <div>
+            <label for="qr-ssid">Network Name (SSID) *</label>
+            <input type="text" id="qr-ssid" placeholder="MyWiFiNetwork">
+          </div>
+          <div>
+            <label for="qr-password">Password</label>
+            <input type="text" id="qr-password" placeholder="Leave empty for open networks">
+          </div>
+        </div>
+        <div class="row row-2">
+          <div>
+            <label for="qr-security">Security</label>
+            <select id="qr-security">
+              <option value="WPA">WPA/WPA2</option>
+              <option value="WEP">WEP</option>
+              <option value="nopass">Open (No Password)</option>
+            </select>
+          </div>
+          <div>
+            <div class="checkbox-row" style="margin-top:22px">
+              <input type="checkbox" id="qr-hidden">
+              <label for="qr-hidden">Hidden Network</label>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <hr class="separator">
+      <div class="divider"></div>
 
-    <!-- Shared config -->
-    <h3 class="collapsible open" onclick="toggleCollapse(this)">Appearance</h3>
-    <div class="collapse-body open">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Format</label>
+      <div class="row row-4">
+        <div>
+          <label for="qr-format">Format</label>
           <select id="qr-format">
-            <option value="png">PNG (Raster)</option>
-            <option value="svg">SVG (Vector)</option>
-            <option value="pdf">PDF (Print)</option>
-            <option value="eps">EPS (Adobe)</option>
-            <option value="txt">TXT (ASCII Art)</option>
+            <option value="png">PNG</option>
+            <option value="svg">SVG</option>
+            <option value="pdf">PDF</option>
+            <option value="eps">EPS</option>
+            <option value="txt">TXT (ASCII)</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Error Correction</label>
-          <select id="qr-ec">
-            <option value="L">L — 7% recovery</option>
-            <option value="M" selected>M — 15% recovery</option>
-            <option value="Q">Q — 25% recovery</option>
-            <option value="H">H — 30% recovery</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Scale <span class="hint">(module size 1–100)</span></label>
+        <div>
+          <label for="qr-scale">Scale</label>
           <input type="number" id="qr-scale" value="10" min="1" max="100">
         </div>
-        <div class="form-group">
-          <label>Border <span class="hint">(quiet zone modules)</span></label>
+        <div>
+          <label for="qr-border">Border</label>
           <input type="number" id="qr-border" value="4" min="0">
         </div>
-        <div class="form-group">
-          <label>Dark Color</label>
+        <div>
+          <label for="qr-ec">Error Correction</label>
+          <select id="qr-ec">
+            <option value="L">L (7%)</option>
+            <option value="M" selected>M (15%)</option>
+            <option value="Q">Q (25%)</option>
+            <option value="H">H (30%)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row row-3">
+        <div>
+          <label for="qr-dark">Dark Color</label>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="color" id="qr-dark-picker" value="#000000" style="width:40px;height:36px;padding:2px;border-radius:6px">
-            <input type="text" id="qr-dark" value="#000000" style="flex:1" placeholder="#000000 or 'black'">
+            <input type="color" id="qr-dark-picker" value="#000000" style="width:50px;flex-shrink:0" oninput="document.getElementById('qr-dark').value=this.value">
+            <input type="text" id="qr-dark" value="#000000" oninput="try{document.getElementById('qr-dark-picker').value=this.value}catch(e){}">
           </div>
         </div>
-        <div class="form-group">
-          <label>Light Color</label>
+        <div>
+          <label for="qr-light">Light Color</label>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="color" id="qr-light-picker" value="#ffffff" style="width:40px;height:36px;padding:2px;border-radius:6px">
-            <input type="text" id="qr-light" value="#ffffff" style="flex:1" placeholder="#ffffff, 'white', or 'transparent'">
+            <input type="color" id="qr-light-picker" value="#ffffff" style="width:50px;flex-shrink:0" oninput="document.getElementById('qr-light').value=this.value">
+            <input type="text" id="qr-light" value="#ffffff" oninput="try{document.getElementById('qr-light-picker').value=this.value}catch(e){}">
           </div>
         </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
+        <div>
+          <label>Options</label>
+          <div class="checkbox-row" style="margin-top:6px">
             <input type="checkbox" id="qr-micro">
             <label for="qr-micro">Force Micro QR</label>
           </div>
-        </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
+          <div class="checkbox-row">
             <input type="checkbox" id="qr-boost" checked>
             <label for="qr-boost">Boost Error Correction</label>
           </div>
         </div>
       </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="generateQR()">
+          ⚡ Generate QR Code
+        </button>
+      </div>
     </div>
 
-    <div class="btn-group">
-      <button class="btn btn-primary" id="qr-generate" onclick="generateQR()">
-        <span class="spinner"></span>
-        <span class="btn-text">📱 Generate QR Code</span>
-      </button>
-    </div>
-    <div class="progress-bar" id="qr-progress"><div class="fill"></div></div>
-    <div class="output" id="qr-output">
-      <div class="output-header">
-        <span class="output-status" id="qr-status-badge"></span>
-        <span id="qr-output-info"></span>
-      </div>
-      <div class="output-body">
-        <div class="output-meta" id="qr-meta"></div>
-        <div class="preview-area" id="qr-preview"></div>
+    <!-- QR Result -->
+    <div id="qr-result" style="display:none">
+      <div class="card">
+        <h3>📸 QR Code Output</h3>
+        <div class="preview-container" id="qr-preview"></div>
+        <div style="margin-top:12px" class="action-row">
+          <a id="qr-download-btn" class="btn btn-secondary" download="qrcode.png">⬇ Download</a>
+        </div>
+        <div id="qr-headers" style="margin-top:12px"></div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ═══════════════ DOWNLOAD ═══════════════ -->
-<div class="panel" id="panel-dl">
-  <div class="card">
-    <h3><span class="method">POST</span> /unidl — Universal Download</h3>
-    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px">
-      Download from YouTube, Twitter/X, Reddit, Instagram, TikTok, SoundCloud, Vimeo, and 1000+ sites.
-    </p>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>URL</label>
-        <input type="text" id="dl-url" placeholder="https://www.youtube.com/watch?v=..." value="">
-      </div>
-      <div class="form-group">
-        <label>Quality</label>
-        <select id="dl-quality">
-          <option value="best">Best Available</option>
-          <option value="1080p">1080p</option>
-          <option value="720p" selected>720p</option>
-          <option value="480p">480p</option>
-          <option value="audio">Audio Only</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Audio Format <span class="hint">(when extracting audio)</span></label>
-        <select id="dl-audio-format">
-          <option value="">Auto</option>
-          <option value="mp3">MP3</option>
-          <option value="m4a">M4A</option>
-          <option value="opus">Opus</option>
-          <option value="wav">WAV</option>
-        </select>
-      </div>
-    </div>
+  <!-- ═══════ Download Panel ═══════ -->
+  <div class="panel" id="panel-dl">
+    <div class="card">
+      <h3>📥 Universal Download</h3>
+      <p class="hint" style="margin-bottom:16px;margin-top:-8px">Supports YouTube, Twitter/X, Reddit, Instagram, TikTok, SoundCloud, Vimeo, and 1000+ sites</p>
 
-    <hr class="separator">
-    <h3 class="collapsible" onclick="toggleCollapse(this)">Advanced Options</h3>
-    <div class="collapse-body">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Video Codec</label>
-          <select id="dl-codec">
+      <label for="dl-url">URL *</label>
+      <input type="url" id="dl-url" placeholder="https://www.youtube.com/watch?v=..." value="">
+
+      <div class="row row-3">
+        <div>
+          <label for="dl-quality">Quality</label>
+          <select id="dl-quality">
+            <option value="best">Best Available</option>
+            <option value="1080p">1080p</option>
+            <option value="720p" selected>720p</option>
+            <option value="480p">480p</option>
+            <option value="audio">Audio Only</option>
+          </select>
+        </div>
+        <div>
+          <label for="dl-audio-format">Audio Format</label>
+          <select id="dl-audio-format">
+            <option value="">Auto</option>
+            <option value="mp3">MP3</option>
+            <option value="m4a">M4A</option>
+            <option value="opus">Opus</option>
+            <option value="wav">WAV</option>
+            <option value="vorbis">Vorbis</option>
+          </select>
+        </div>
+        <div>
+          <label for="dl-video-codec">Video Codec</label>
+          <select id="dl-video-codec">
             <option value="">Auto</option>
             <option value="h264">H.264</option>
             <option value="h265">H.265</option>
@@ -396,385 +666,391 @@ a:hover{color:var(--primary-hover)}
             <option value="av1">AV1</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Rate Limit</label>
-          <input type="text" id="dl-rate-limit" placeholder="e.g. 1M, 500K">
-        </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-extract-audio">
-            <label for="dl-extract-audio">Extract Audio Only</label>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="dl-extract-audio">
+        <label for="dl-extract-audio">Extract audio only</label>
+      </div>
+
+      <!-- Advanced options (collapsed) -->
+      <button class="section-toggle" onclick="toggleAdvanced()">
+        <span id="adv-arrow">▸</span> Advanced Options
+      </button>
+
+      <div class="collapsible" id="dl-advanced">
+        <div class="row row-3">
+          <div>
+            <label for="dl-rate-limit">Speed Limit</label>
+            <input type="text" id="dl-rate-limit" placeholder="e.g. 2M">
+          </div>
+          <div>
+            <label for="dl-proxy">Proxy</label>
+            <input type="text" id="dl-proxy" placeholder="http://proxy:8080">
+          </div>
+          <div>
+            <label for="dl-output-template">Output Template</label>
+            <input type="text" id="dl-output-template" placeholder="%(title)s.%(ext)s">
           </div>
         </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-subtitles">
-            <label for="dl-subtitles">Download Subtitles</label>
+
+        <div class="row row-2">
+          <div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-subtitles">
+              <label for="dl-subtitles">Download Subtitles</label>
+            </div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-embed-subs">
+              <label for="dl-embed-subs">Embed Subtitles</label>
+            </div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-embed-thumb">
+              <label for="dl-embed-thumb">Embed Thumbnail</label>
+            </div>
+          </div>
+          <div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-metadata" checked>
+              <label for="dl-metadata">Add Metadata</label>
+            </div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-free-formats" checked>
+              <label for="dl-free-formats">Prefer Free Formats</label>
+            </div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="dl-keep-video">
+              <label for="dl-keep-video">Keep Video (when extracting audio)</label>
+            </div>
           </div>
         </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-embed-subs">
-            <label for="dl-embed-subs">Embed Subtitles</label>
+
+        <label>Subtitle Languages (comma-separated)</label>
+        <input type="text" id="dl-sub-langs" placeholder="en, es, ja">
+
+        <div class="row row-3">
+          <div>
+            <label for="dl-playlist-start">Playlist Start</label>
+            <input type="number" id="dl-playlist-start" placeholder="1" min="1">
+          </div>
+          <div>
+            <label for="dl-playlist-end">Playlist End</label>
+            <input type="number" id="dl-playlist-end" placeholder="All">
+          </div>
+          <div>
+            <label for="dl-max-downloads">Max Downloads</label>
+            <input type="number" id="dl-max-downloads" placeholder="Unlimited">
           </div>
         </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-thumbnail">
-            <label for="dl-thumbnail">Embed Thumbnail</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-metadata" checked>
-            <label for="dl-metadata">Add Metadata</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <div class="check-row" style="margin-top:8px">
-            <input type="checkbox" id="dl-free-formats" checked>
-            <label for="dl-free-formats">Prefer Free Formats</label>
-          </div>
-        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="startDownload()">
+          📥 Download
+        </button>
       </div>
     </div>
 
-    <div class="btn-group">
-      <button class="btn btn-primary" id="dl-download" onclick="downloadMedia()">
-        <span class="spinner"></span>
-        <span class="btn-text">📥 Download</span>
-      </button>
-    </div>
-    <div class="progress-bar" id="dl-progress"><div class="fill"></div></div>
-    <div class="output" id="dl-output">
-      <div class="output-header">
-        <span class="output-status" id="dl-status-badge"></span>
-        <span id="dl-output-info"></span>
-      </div>
-      <div class="output-body">
-        <div class="output-meta" id="dl-meta"></div>
-        <div class="preview-area" id="dl-preview"></div>
+    <!-- Download Result -->
+    <div id="dl-result" style="display:none">
+      <div class="card">
+        <h3>✅ Download Complete</h3>
+        <div id="dl-file-info"></div>
+        <div style="margin-top:12px" class="action-row">
+          <a id="dl-download-btn" class="btn btn-primary" download>⬇ Save File</a>
+        </div>
+        <div id="dl-preview" style="margin-top:16px"></div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- ═══════ Response Log ═══════ -->
+  <div class="response-area" id="response-log" style="display:none;margin-top:16px">
+    <div class="response-header">
+      <span>Response</span>
+      <span id="resp-status"></span>
+    </div>
+    <div class="response-body">
+      <pre id="resp-body"></pre>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ── Tab switching ───────────────────────────────────────
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-  });
-});
+const BASE = window.location.origin;
 
-// ── Collapsible sections ────────────────────────────────
-function toggleCollapse(el) {
-  el.classList.toggle('open');
-  el.nextElementSibling.classList.toggle('open');
-}
-
-// ── QR mode toggle ──────────────────────────────────────
-function toggleQRMode() {
-  const mode = document.getElementById('qr-mode').value;
-  document.getElementById('qr-standard-fields').style.display = mode === 'data' ? '' : 'none';
-  document.getElementById('qr-wifi-fields').style.display = mode === 'wifi' ? '' : 'none';
-}
-
-// ── Color picker sync ───────────────────────────────────
-document.getElementById('qr-dark-picker').addEventListener('input', e => {
-  document.getElementById('qr-dark').value = e.target.value;
-});
-document.getElementById('qr-light-picker').addEventListener('input', e => {
-  document.getElementById('qr-light').value = e.target.value;
-});
-document.getElementById('qr-dark').addEventListener('input', e => {
-  try { document.getElementById('qr-dark-picker').value = e.target.value; } catch {}
-});
-document.getElementById('qr-light').addEventListener('input', e => {
-  try { document.getElementById('qr-light-picker').value = e.target.value; } catch {}
-});
-
-// ── Health check ────────────────────────────────────────
+// ── Health check ────────────────────────────────
 async function checkHealth() {
+  const badge = document.getElementById('healthBadge');
+  const status = document.getElementById('healthStatus');
   try {
-    const r = await fetch('/health');
+    const r = await fetch(`${BASE}/health`);
     const d = await r.json();
-    const dot = document.getElementById('statusDot');
-    const txt = document.getElementById('statusText');
-    if (d.status === 'healthy') {
-      dot.style.background = 'var(--success)';
-      txt.textContent = `Healthy · ${d.services_loaded} services · ${fmtUptime(d.uptime)}`;
-    } else {
-      dot.style.background = 'var(--warning)';
-      txt.textContent = `Degraded · No Internet`;
-    }
+    badge.className = 'health-badge ok';
+    status.textContent = `${d.status} • ${d.services_loaded} services • ${formatUptime(d.uptime)}`;
   } catch {
-    document.getElementById('statusDot').style.background = 'var(--error)';
-    document.getElementById('statusText').textContent = 'Offline';
+    badge.className = 'health-badge bad';
+    status.textContent = 'Offline';
   }
 }
-
-function fmtUptime(s) {
-  if (s < 60) return Math.round(s) + 's';
-  if (s < 3600) return Math.round(s/60) + 'm';
-  return Math.round(s/3600) + 'h ' + Math.round((s%3600)/60) + 'm';
+function formatUptime(s) {
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
 }
-
 checkHealth();
 setInterval(checkHealth, 15000);
 
-// ── Helpers ─────────────────────────────────────────────
-function showLoading(btnId, progressId) {
-  document.getElementById(btnId).classList.add('loading');
-  document.getElementById(btnId).disabled = true;
-  document.getElementById(progressId).classList.add('active');
+// ── Tab switching ───────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['tts','qr','dl'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
 }
 
-function hideLoading(btnId, progressId) {
-  document.getElementById(btnId).classList.remove('loading');
-  document.getElementById(btnId).disabled = false;
-  document.getElementById(progressId).classList.remove('active');
+// ── Loading overlay ─────────────────────────────
+function showLoading(text) {
+  document.getElementById('loadingText').textContent = text || 'Processing...';
+  document.getElementById('loading').classList.add('active');
+}
+function hideLoading() {
+  document.getElementById('loading').classList.remove('active');
 }
 
-function showOutput(id, status, info, metaTags, previewHTML) {
-  const out = document.getElementById(id + '-output');
-  out.classList.add('visible');
-  const badge = document.getElementById(id + '-status-badge');
-  badge.textContent = status;
-  badge.className = 'output-status s' + status;
-  document.getElementById(id + '-output-info').textContent = info;
-  document.getElementById(id + '-meta').innerHTML = metaTags.map(t => `<span class="tag">${t}</span>`).join('');
-  document.getElementById(id + '-preview').innerHTML = previewHTML;
+// ── Response log ────────────────────────────────
+function showResponse(status, body) {
+  const log = document.getElementById('response-log');
+  log.style.display = 'block';
+  const cls = status < 300 ? 's2xx' : status < 500 ? 's4xx' : 's5xx';
+  document.getElementById('resp-status').innerHTML =
+    `<span class="status-pill ${cls}">${status}</span>`;
+  document.getElementById('resp-body').textContent =
+    typeof body === 'string' ? body : JSON.stringify(body, null, 2);
 }
 
-function fmtSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/1024/1024).toFixed(2) + ' MB';
+function renderHeaders(headers, containerId) {
+  const keys = [...headers.entries()].filter(([k]) =>
+    k.startsWith('x-') || k === 'content-type' || k === 'content-disposition'
+  );
+  if (!keys.length) return;
+  let html = '<table class="headers-table"><tr><th>Header</th><th>Value</th></tr>';
+  for (const [k, v] of keys) {
+    html += `<tr><td>${k}</td><td>${v}</td></tr>`;
+  }
+  html += '</table>';
+  document.getElementById(containerId).innerHTML = html;
 }
 
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-}
-
-// ── TTS Generate ────────────────────────────────────────
+// ── TTS ─────────────────────────────────────────
 async function generateTTS() {
   const text = document.getElementById('tts-text').value.trim();
-  if (!text) return alert('Enter some text first');
-
-  showLoading('tts-generate', 'tts-progress');
+  if (!text) { alert('Enter some text first'); return; }
 
   const body = { text };
   const voice = document.getElementById('tts-voice').value;
+  const rate = document.getElementById('tts-rate').value;
+  const pitch = document.getElementById('tts-pitch').value;
+  const volume = document.getElementById('tts-volume').value;
   if (voice) body.voice = voice;
-  body.rate = document.getElementById('tts-rate').value;
-  body.pitch = document.getElementById('tts-pitch').value;
-  body.volume = document.getElementById('tts-volume').value;
+  if (rate !== '+0%') body.rate = rate;
+  if (pitch !== '+0Hz') body.pitch = pitch;
+  if (volume !== '+0%') body.volume = volume;
 
+  showLoading('Generating speech...');
   try {
-    const r = await fetch('/tts', {
+    const r = await fetch(`${BASE}/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!r.ok) {
       const err = await r.json();
-      showOutput('tts', r.status, err.message || 'Error', [], `<p style="color:var(--error)">${err.detail?.message || err.message || JSON.stringify(err)}</p>`);
+      hideLoading();
+      showResponse(r.status, err);
       return;
     }
 
     const blob = await r.blob();
-    const h = Object.fromEntries([...r.headers.entries()]);
-    const voiceUsed = h['x-tts-voice'] || 'unknown';
-    const size = h['x-audio-size'] || blob.size;
-    const filename = `tts_${voiceUsed.replace(/[^a-zA-Z0-9-]/g, '_')}.mp3`;
+    const url = URL.createObjectURL(blob);
 
-    const audioUrl = URL.createObjectURL(blob);
+    document.getElementById('tts-audio').src = url;
+    document.getElementById('tts-download').href = url;
+    document.getElementById('tts-result').style.display = 'block';
+    document.getElementById('tts-voices-result').style.display = 'none';
 
-    const meta = [
-      `Voice: ${voiceUsed}`,
-      `Rate: ${h['x-tts-rate'] || body.rate}`,
-      `Pitch: ${h['x-tts-pitch'] || body.pitch}`,
-      `Volume: ${h['x-tts-volume'] || body.volume}`,
-      `Size: ${fmtSize(+size)}`,
-      `Text: ${h['x-text-length']} chars`,
-    ];
-
-    showOutput('tts', 200, `Generated ${fmtSize(+size)} audio`, meta,
-      `<audio controls src="${audioUrl}"></audio>
-       <a class="download-link" onclick="downloadBlob(window._ttsBlob, '${filename}')">📥 Download MP3</a>`
-    );
-    window._ttsBlob = blob;
-
+    renderHeaders(r.headers, 'tts-headers');
+    showResponse(r.status, `Audio generated: ${(blob.size / 1024).toFixed(1)} KB`);
   } catch (e) {
-    showOutput('tts', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
-  } finally {
-    hideLoading('tts-generate', 'tts-progress');
+    showResponse(0, `Network error: ${e.message}`);
   }
+  hideLoading();
 }
 
-// ── TTS Voice List ──────────────────────────────────────
 async function listVoices() {
+  showLoading('Fetching voices...');
   try {
-    const r = await fetch('/tts', {
+    const r = await fetch(`${BASE}/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ list_voices: true })
+      body: JSON.stringify({ list_voices: true }),
     });
-    const d = await r.json();
+    const data = await r.json();
+    showResponse(r.status, data);
 
-    let rows = [];
-    for (const [locale, voices] of Object.entries(d.voices)) {
+    let html = `<p style="margin-bottom:12px;color:var(--text2)">${data.total} voices available — Default: <strong>${data.default}</strong></p>`;
+    for (const [locale, voices] of Object.entries(data.voices).sort()) {
+      html += `<div style="margin-bottom:8px"><strong style="color:var(--accent2)">${locale}</strong>`;
+      html += `<span style="color:var(--text2);font-size:12px"> (${voices.length})</span>`;
+      html += '<div style="margin-left:12px;font-size:13px">';
       for (const v of voices) {
-        rows.push({ locale, name: v.name, gender: v.gender });
+        html += `<div style="padding:2px 0"><code style="color:var(--green);cursor:pointer" onclick="pickVoice('${v.name}')">${v.name}</code> — ${v.gender}</div>`;
       }
+      html += '</div></div>';
     }
-    rows.sort((a, b) => a.locale.localeCompare(b.locale));
 
-    let html = `<input type="text" class="voice-filter" placeholder="Filter voices... (${d.total} total)" 
-      oninput="filterVoices(this.value)" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin-bottom:8px">
-      <div style="max-height:400px;overflow-y:auto"><table class="voice-table" id="voice-table-inner">
-      <tr><th>Locale</th><th>Voice Name</th><th>Gender</th><th>Use</th></tr>`;
-    for (const v of rows) {
-      html += `<tr><td>${v.locale}</td><td>${v.name}</td><td>${v.gender}</td>
-        <td><a href="#" onclick="useVoice('${v.name}');return false" style="font-size:12px">Use →</a></td></tr>`;
-    }
-    html += '</table></div>';
-
-    showOutput('tts', 200, `${d.total} voices available`, [`Default: ${d.default}`], html);
-    document.getElementById('tts-output').classList.add('visible');
+    document.getElementById('tts-voices-body').innerHTML = html;
+    document.getElementById('tts-voices-result').style.display = 'block';
+    document.getElementById('tts-result').style.display = 'none';
   } catch (e) {
-    showOutput('tts', 500, 'Failed to fetch voices', [], `<p style="color:var(--error)">${e.message}</p>`);
+    showResponse(0, `Network error: ${e.message}`);
   }
+  hideLoading();
 }
 
-function filterVoices(query) {
-  const q = query.toLowerCase();
-  document.querySelectorAll('#voice-table-inner tr').forEach((row, i) => {
-    if (i === 0) return;
-    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
-
-function useVoice(name) {
+function pickVoice(name) {
   const sel = document.getElementById('tts-voice');
   // Check if option exists
   for (const opt of sel.options) {
     if (opt.value === name) { sel.value = name; return; }
   }
   // Add it
-  const opt = document.createElement('option');
-  opt.value = name; opt.textContent = name + ' ★';
-  sel.appendChild(opt); sel.value = name;
-  // Switch to TTS tab visual feedback
-  document.querySelector('[data-tab="tts"]').click();
+  const opt = new Option(name, name, true, true);
+  sel.appendChild(opt);
 }
 
-// ── QR Generate ─────────────────────────────────────────
+async function loadAllVoices(e) {
+  e.preventDefault();
+  showLoading('Loading voices...');
+  try {
+    const r = await fetch(`${BASE}/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ list_voices: true }),
+    });
+    const data = await r.json();
+    const sel = document.getElementById('tts-voice');
+    // Clear and rebuild
+    sel.innerHTML = '<option value="">Default (en-US-AnaNeural)</option>';
+    for (const [locale, voices] of Object.entries(data.voices).sort()) {
+      const group = document.createElement('optgroup');
+      group.label = locale;
+      for (const v of voices) {
+        group.appendChild(new Option(`${v.name} (${v.gender})`, v.name));
+      }
+      sel.appendChild(group);
+    }
+  } catch (e) {
+    alert('Failed to load voices');
+  }
+  hideLoading();
+}
+
+// ── QR Code ─────────────────────────────────────
+function toggleQRMode() {
+  const wifi = document.getElementById('qr-mode-wifi').checked;
+  document.getElementById('qr-standard-fields').style.display = wifi ? 'none' : 'block';
+  document.getElementById('qr-wifi-fields').style.display = wifi ? 'block' : 'none';
+}
+
 async function generateQR() {
-  const mode = document.getElementById('qr-mode').value;
+  const wifi = document.getElementById('qr-mode-wifi').checked;
+  const format = document.getElementById('qr-format').value;
   const body = {};
 
-  if (mode === 'data') {
-    const data = document.getElementById('qr-data').value.trim();
-    if (!data) return alert('Enter QR data first');
-    body.data = data;
-  } else {
+  if (wifi) {
     const ssid = document.getElementById('qr-ssid').value.trim();
-    if (!ssid) return alert('Enter SSID first');
+    if (!ssid) { alert('Enter a network name'); return; }
     body.ssid = ssid;
     const pw = document.getElementById('qr-password').value;
     if (pw) body.password = pw;
     body.security = document.getElementById('qr-security').value;
     body.hidden = document.getElementById('qr-hidden').checked;
+  } else {
+    const data = document.getElementById('qr-data').value.trim();
+    if (!data) { alert('Enter data to encode'); return; }
+    body.data = data;
   }
 
-  body.format = document.getElementById('qr-format').value;
-  body.error_correction = document.getElementById('qr-ec').value;
+  body.format = format;
   body.scale = parseInt(document.getElementById('qr-scale').value) || 10;
-  body.border = parseInt(document.getElementById('qr-border').value) || 0;
-  body.micro = document.getElementById('qr-micro').checked || null;
+  body.border = parseInt(document.getElementById('qr-border').value) ?? 4;
+  body.dark = document.getElementById('qr-dark').value || '#000000';
+  body.light = document.getElementById('qr-light').value || '#ffffff';
+  body.error_correction = document.getElementById('qr-ec').value;
+  if (document.getElementById('qr-micro').checked) body.micro = true;
   body.boost_error = document.getElementById('qr-boost').checked;
 
-  const dark = document.getElementById('qr-dark').value.trim();
-  const light = document.getElementById('qr-light').value.trim();
-  if (dark) body.dark = dark;
-  if (light) body.light = light;
-
-  showLoading('qr-generate', 'qr-progress');
-
+  showLoading('Generating QR code...');
   try {
-    const r = await fetch('/qr', {
+    const r = await fetch(`${BASE}/qr`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!r.ok) {
       const err = await r.json();
-      showOutput('qr', r.status, err.message || 'Error', [], `<p style="color:var(--error)">${JSON.stringify(err.detail || err)}</p>`);
+      hideLoading();
+      showResponse(r.status, err);
       return;
     }
 
     const blob = await r.blob();
-    const h = Object.fromEntries([...r.headers.entries()]);
-    const fmt = body.format;
-    const filename = `qrcode.${fmt}`;
+    const url = URL.createObjectURL(blob);
+    const preview = document.getElementById('qr-preview');
 
-    const meta = [];
-    if (h['x-qr-version']) meta.push(`Version: ${h['x-qr-version']}`);
-    if (h['x-qr-error-correction']) meta.push(`EC: ${h['x-qr-error-correction']}`);
-    if (h['x-qr-size']) meta.push(`Size: ${h['x-qr-size']}`);
-    if (h['x-qr-is-micro']) meta.push(`Micro: ${h['x-qr-is-micro']}`);
-    if (h['x-qr-type']) meta.push(`Type: ${h['x-qr-type']}`);
-    if (h['x-wifi-ssid']) meta.push(`SSID: ${h['x-wifi-ssid']}`);
-    meta.push(`${fmtSize(blob.size)}`);
-
-    let previewHTML = '';
-    window._qrBlob = blob;
-
-    if (fmt === 'png') {
-      const url = URL.createObjectURL(blob);
-      previewHTML = `<img src="${url}" alt="QR Code"><br>`;
-    } else if (fmt === 'svg') {
+    if (format === 'png' || format === 'svg') {
+      preview.innerHTML = `<img src="${url}" alt="QR Code">`;
+    } else if (format === 'txt') {
       const text = await blob.text();
-      const svgBlob = new Blob([text], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(svgBlob);
-      previewHTML = `<img src="${url}" alt="QR Code" style="max-width:300px"><br>`;
-    } else if (fmt === 'txt') {
-      const text = await blob.text();
-      previewHTML = `<div class="txt-preview">${text.replace(/</g,'&lt;')}</div>`;
+      preview.innerHTML = `<pre style="font-size:6px;line-height:6px;letter-spacing:1px;color:var(--text)">${text}</pre>`;
     } else {
-      previewHTML = `<p style="color:var(--text-dim)">Preview not available for ${fmt.toUpperCase()} format</p>`;
+      preview.innerHTML = `<div style="text-align:center;color:var(--text2)">
+        <div style="font-size:48px;margin-bottom:8px">📄</div>
+        <div>${format.toUpperCase()} file generated (${(blob.size/1024).toFixed(1)} KB)</div>
+      </div>`;
     }
 
-    previewHTML += `<a class="download-link" onclick="downloadBlob(window._qrBlob, '${filename}')">📥 Download ${fmt.toUpperCase()}</a>`;
+    const ext = format;
+    const dlBtn = document.getElementById('qr-download-btn');
+    dlBtn.href = url;
+    dlBtn.download = `qrcode.${ext}`;
+    dlBtn.textContent = `⬇ Download .${ext}`;
 
-    showOutput('qr', 200, `Generated ${fmt.toUpperCase()} QR code`, meta, previewHTML);
-
+    document.getElementById('qr-result').style.display = 'block';
+    renderHeaders(r.headers, 'qr-headers');
+    showResponse(r.status, `QR code generated: ${(blob.size/1024).toFixed(1)} KB`);
   } catch (e) {
-    showOutput('qr', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
-  } finally {
-    hideLoading('qr-generate', 'qr-progress');
+    showResponse(0, `Network error: ${e.message}`);
   }
+  hideLoading();
 }
 
-// ── Download Media ──────────────────────────────────────
-async function downloadMedia() {
-  const url = document.getElementById('dl-url').value.trim();
-  if (!url) return alert('Enter a URL first');
+// ── Download ────────────────────────────────────
+function toggleAdvanced() {
+  const el = document.getElementById('dl-advanced');
+  const arrow = document.getElementById('adv-arrow');
+  el.classList.toggle('open');
+  arrow.textContent = el.classList.contains('open') ? '▾' : '▸';
+}
 
-  showLoading('dl-download', 'dl-progress');
+async function startDownload() {
+  const url = document.getElementById('dl-url').value.trim();
+  if (!url) { alert('Enter a URL first'); return; }
 
   const body = { url };
   body.quality = document.getElementById('dl-quality').value;
@@ -782,76 +1058,102 @@ async function downloadMedia() {
   const audioFmt = document.getElementById('dl-audio-format').value;
   if (audioFmt) body.audio_format = audioFmt;
 
-  const codec = document.getElementById('dl-codec').value;
+  const codec = document.getElementById('dl-video-codec').value;
   if (codec) body.video_codec = codec;
 
-  const rateLimit = document.getElementById('dl-rate-limit').value.trim();
-  if (rateLimit) body.rate_limit = rateLimit;
-
   body.extract_audio = document.getElementById('dl-extract-audio').checked;
-  body.subtitles = document.getElementById('dl-subtitles').checked;
-  body.embed_subtitles = document.getElementById('dl-embed-subs').checked;
-  body.embed_thumbnail = document.getElementById('dl-thumbnail').checked;
   body.add_metadata = document.getElementById('dl-metadata').checked;
   body.prefer_free_formats = document.getElementById('dl-free-formats').checked;
 
+  // Advanced
+  const rateLimit = document.getElementById('dl-rate-limit').value.trim();
+  if (rateLimit) body.rate_limit = rateLimit;
+
+  const proxy = document.getElementById('dl-proxy').value.trim();
+  if (proxy) body.proxy = proxy;
+
+  const outputTpl = document.getElementById('dl-output-template').value.trim();
+  if (outputTpl) body.output_template = outputTpl;
+
+  body.subtitles = document.getElementById('dl-subtitles').checked;
+  body.embed_subtitles = document.getElementById('dl-embed-subs').checked;
+  body.embed_thumbnail = document.getElementById('dl-embed-thumb').checked;
+  body.keep_video = document.getElementById('dl-keep-video').checked;
+
+  const subLangs = document.getElementById('dl-sub-langs').value.trim();
+  if (subLangs) body.subtitle_langs = subLangs.split(',').map(s => s.trim()).filter(Boolean);
+
+  const plStart = document.getElementById('dl-playlist-start').value;
+  if (plStart) body.playlist_start = parseInt(plStart);
+
+  const plEnd = document.getElementById('dl-playlist-end').value;
+  if (plEnd) body.playlist_end = parseInt(plEnd);
+
+  const maxDl = document.getElementById('dl-max-downloads').value;
+  if (maxDl) body.max_downloads = parseInt(maxDl);
+
+  showLoading('Downloading... This may take a minute for large files.');
   try {
-    const r = await fetch('/unidl', {
+    const r = await fetch(`${BASE}/unidl`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!r.ok) {
       const err = await r.json();
-      showOutput('dl', r.status, err.detail?.message || err.message || 'Error', [],
-        `<p style="color:var(--error)">${JSON.stringify(err.detail || err)}</p>`);
+      hideLoading();
+      showResponse(r.status, err);
       return;
     }
 
     const blob = await r.blob();
-    const h = Object.fromEntries([...r.headers.entries()]);
-
-    // Parse filename from Content-Disposition
-    let filename = 'download';
-    const cd = h['content-disposition'] || '';
-    const fnMatch = cd.match(/filename\*=UTF-8''(.+?)(?:;|$)/);
-    if (fnMatch) {
-      filename = decodeURIComponent(fnMatch[1]);
-    } else {
-      const fnMatch2 = cd.match(/filename="?(.+?)"?(?:;|$)/);
-      if (fnMatch2) filename = fnMatch2[1];
-    }
-
-    const contentType = h['content-type'] || '';
-    const isVideo = contentType.startsWith('video/');
-    const isAudio = contentType.startsWith('audio/');
-
-    const meta = [
-      `File: ${filename}`,
-      `Size: ${fmtSize(blob.size)}`,
-      `Type: ${contentType}`,
-    ];
-
-    let previewHTML = '';
-    window._dlBlob = blob;
     const blobUrl = URL.createObjectURL(blob);
 
-    if (isVideo) {
-      previewHTML = `<video controls src="${blobUrl}" style="max-width:100%;max-height:400px;border-radius:8px"></video><br>`;
-    } else if (isAudio) {
-      previewHTML = `<audio controls src="${blobUrl}" style="width:100%;max-width:500px"></audio><br>`;
+    // Parse filename from Content-Disposition
+    const cd = r.headers.get('content-disposition') || '';
+    let filename = 'download';
+    const utf8Match = cd.match(/filename\*=UTF-8''(.+)/);
+    const basicMatch = cd.match(/filename="?([^";\n]+)"?/);
+    if (utf8Match) {
+      filename = decodeURIComponent(utf8Match[1]);
+    } else if (basicMatch) {
+      filename = basicMatch[1];
     }
 
-    previewHTML += `<a class="download-link" onclick="downloadBlob(window._dlBlob, '${filename.replace(/'/g, "\\'")}')">📥 Save ${filename}</a>`;
+    const ct = r.headers.get('content-type') || '';
+    const isVideo = ct.startsWith('video/');
+    const isAudio = ct.startsWith('audio/');
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
 
-    showOutput('dl', 200, `Downloaded ${fmtSize(blob.size)}`, meta, previewHTML);
+    document.getElementById('dl-file-info').innerHTML = `
+      <div class="file-info">
+        <span class="name">${isVideo ? '🎬' : isAudio ? '🎵' : '📄'} ${filename}</span>
+        <span class="size">${sizeMB} MB • ${ct}</span>
+      </div>
+    `;
 
+    const dlBtn = document.getElementById('dl-download-btn');
+    dlBtn.href = blobUrl;
+    dlBtn.download = filename;
+    dlBtn.textContent = `⬇ Save ${filename}`;
+
+    // Preview
+    const preview = document.getElementById('dl-preview');
+    if (isVideo) {
+      preview.innerHTML = `<video controls style="width:100%;max-height:400px;border-radius:8px" src="${blobUrl}"></video>`;
+    } else if (isAudio) {
+      preview.innerHTML = `<audio controls style="width:100%" src="${blobUrl}"></audio>`;
+    } else {
+      preview.innerHTML = '';
+    }
+
+    document.getElementById('dl-result').style.display = 'block';
+    showResponse(r.status, `Downloaded: ${filename} (${sizeMB} MB)`);
   } catch (e) {
-    showOutput('dl', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
-  } finally {
-    hideLoading('dl-download', 'dl-progress');
+    showResponse(0, `Network error: ${e.message}`);
   }
+  hideLoading();
 }
 </script>
 </body>
