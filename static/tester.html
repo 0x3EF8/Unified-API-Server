@@ -106,12 +106,7 @@ a{color:var(--accent2);text-decoration:none}
 .download-bar button:hover{background:var(--accent2)}
 .download-bar .file-info{font-size:12px;color:var(--dim)}
 
-/* ── Templates / Presets ── */
-.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
-.preset-card{padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s}
-.preset-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-.preset-card .preset-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
-.preset-card .preset-desc{font-size:11px;color:var(--dim)}
+
 
 /* ── History ── */
 .history-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s}
@@ -158,8 +153,8 @@ a{color:var(--accent2);text-decoration:none}
       <div class="sub">Unified API Server</div>
     </div>
 
-    <div class="sidebar-section">Presets</div>
-    <ul class="sidebar-list" id="presetList"></ul>
+    <div class="sidebar-section">Endpoints</div>
+    <ul class="sidebar-list" id="endpointList"></ul>
 
     <div class="sidebar-section">Custom Requests</div>
     <ul class="sidebar-list" id="customList"></ul>
@@ -197,7 +192,7 @@ a{color:var(--accent2);text-decoration:none}
           <div class="tab active" data-tab="body" onclick="switchReqTab(this)">Body</div>
           <div class="tab" data-tab="headers" onclick="switchReqTab(this)">Headers<span class="tab-badge" id="headerCount">1</span></div>
           <div class="tab" data-tab="params" onclick="switchReqTab(this)">Params</div>
-          <div class="tab" data-tab="presets" onclick="switchReqTab(this)">Templates</div>
+
         </div>
 
         <!-- Body tab -->
@@ -226,10 +221,7 @@ a{color:var(--accent2);text-decoration:none}
           <button class="add-row-btn" onclick="addParamRow()">+ Add Parameter</button>
         </div>
 
-        <!-- Templates tab -->
-        <div class="panel-body" id="tab-presets" style="display:none">
-          <div class="preset-grid" id="presetGrid"></div>
-        </div>
+
       </div>
 
       <!-- Response panel -->
@@ -245,7 +237,7 @@ a{color:var(--accent2);text-decoration:none}
           <div class="empty-state" id="resEmpty">
             <div class="icon">↑</div>
             <p>Send a request to see the response</p>
-            <p style="font-size:11px">Use a preset from the sidebar or type your own</p>
+            <p style="font-size:11px">Pick an endpoint from the sidebar or type your own</p>
           </div>
           <div id="resContent" style="display:none"></div>
         </div>
@@ -288,85 +280,27 @@ let responseFilename = 'response';
 let history = [];
 const customRequests = JSON.parse(localStorage.getItem('api_tester_custom') || '[]');
 
-// ─── Presets ───
-const PRESETS = [
-  // TTS
-  {name:"TTS — Basic",method:"POST",path:"/tts",cat:"TTS",desc:"Generate speech with default voice",
-   body:{text:"Hello, world! This is a test of the text to speech API."}},
-  {name:"TTS — Jenny",method:"POST",path:"/tts",cat:"TTS",desc:"US English female voice",
-   body:{text:"Hello! I'm Jenny, a natural sounding US English voice.",voice:"en-US-JennyNeural"}},
-  {name:"TTS — British",method:"POST",path:"/tts",cat:"TTS",desc:"British English male voice",
-   body:{text:"Good day! This is Ryan, a British English voice.",voice:"en-GB-RyanNeural",rate:"+10%"}},
-  {name:"TTS — Full Config",method:"POST",path:"/tts",cat:"TTS",desc:"All settings: voice, rate, pitch, volume",
-   body:{text:"Every setting configured — voice, speed, pitch, and volume!",voice:"en-AU-NatashaNeural",rate:"+20%",pitch:"+5Hz",volume:"+30%"}},
-  {name:"TTS — Slow & Deep",method:"POST",path:"/tts",cat:"TTS",desc:"Slow speech with low pitch",
-   body:{text:"This is slow and deep speech.",rate:"-30%",pitch:"-10Hz"}},
-  {name:"TTS — Fast & High",method:"POST",path:"/tts",cat:"TTS",desc:"Fast speech with high pitch",
-   body:{text:"Speeding up with a high pitch!",rate:"+50%",pitch:"+10Hz"}},
-  {name:"TTS — List Voices",method:"POST",path:"/tts",cat:"TTS",desc:"Get all 400+ available voices",
+// ─── API Endpoints ───
+const ENDPOINTS = [
+  {name:"Text to Speech",method:"POST",path:"/tts",desc:"Generate speech audio from text",
+   body:{text:"Hello, world!",voice:"en-US-JennyNeural"}},
+  {name:"List Voices",method:"POST",path:"/tts",desc:"Get all 400+ available TTS voices",
    body:{list_voices:true}},
-
-  // QR
-  {name:"QR — Basic PNG",method:"POST",path:"/qr",cat:"QR",desc:"Simple URL QR code",
+  {name:"QR Code",method:"POST",path:"/qr",desc:"Generate QR codes in various formats",
    body:{data:"https://github.com"}},
-  {name:"QR — SVG",method:"POST",path:"/qr",cat:"QR",desc:"Scalable vector QR",
-   body:{data:"https://github.com",format:"svg"}},
-  {name:"QR — PDF",method:"POST",path:"/qr",cat:"QR",desc:"Print-ready PDF",
-   body:{data:"https://github.com",format:"pdf"}},
-  {name:"QR — Colored",method:"POST",path:"/qr",cat:"QR",desc:"Red on white custom colors",
-   body:{data:"https://github.com",dark:"#FF0000",light:"#FFFFFF",scale:15}},
-  {name:"QR — Styled",method:"POST",path:"/qr",cat:"QR",desc:"Blue on transparent SVG",
-   body:{data:"https://github.com",format:"svg",dark:"#0066FF",light:"transparent",scale:12}},
-  {name:"QR — High EC",method:"POST",path:"/qr",cat:"QR",desc:"Maximum error correction",
-   body:{data:"https://github.com",error_correction:"H",scale:15,border:2}},
-  {name:"QR — Micro",method:"POST",path:"/qr",cat:"QR",desc:"Tiny Micro QR code",
-   body:{data:"Hi",micro:true,scale:20}},
-  {name:"QR — WiFi WPA",method:"POST",path:"/qr",cat:"QR",desc:"WiFi connection QR code",
-   body:{ssid:"MyNetwork",password:"SuperSecret123",security:"WPA"}},
-  {name:"QR — WiFi Open",method:"POST",path:"/qr",cat:"QR",desc:"Open network WiFi QR",
-   body:{ssid:"FreeWiFi",security:"nopass"}},
-  {name:"QR — WiFi Styled",method:"POST",path:"/qr",cat:"QR",desc:"Colored WiFi QR",
-   body:{ssid:"StyledNet",password:"pass123",security:"WPA",dark:"#FF6600",light:"#FFFFFF",scale:15}},
-
-  // Download
-  {name:"DL — YouTube 720p",method:"POST",path:"/unidl",cat:"Download",desc:"YouTube video at 720p",
+  {name:"WiFi QR",method:"POST",path:"/qr",desc:"Generate WiFi connection QR code",
+   body:{ssid:"MyNetwork",password:"secret",security:"WPA"}},
+  {name:"Download Media",method:"POST",path:"/unidl",desc:"Download video/audio from any URL",
    body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"720p"}},
-  {name:"DL — YouTube 1080p",method:"POST",path:"/unidl",cat:"Download",desc:"YouTube video at 1080p",
-   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"1080p"}},
-  {name:"DL — YouTube Audio",method:"POST",path:"/unidl",cat:"Download",desc:"Extract audio as MP3",
-   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",extract_audio:true,audio_format:"mp3"}},
-  {name:"DL — YouTube Best",method:"POST",path:"/unidl",cat:"Download",desc:"Best available quality",
-   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"best"}},
-  {name:"DL — SoundCloud",method:"POST",path:"/unidl",cat:"Download",desc:"SoundCloud audio track",
-   body:{url:"https://soundcloud.com/rick-astley-official/never-gonna-give-you-up-4",quality:"audio"}},
-  {name:"DL — Full Config",method:"POST",path:"/unidl",cat:"Download",desc:"Video + subs + thumbnail + metadata",
-   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"1080p",subtitles:true,subtitle_langs:["en"],embed_subtitles:true,embed_thumbnail:true,add_metadata:true}},
-
-  // System
-  {name:"Server Info",method:"GET",path:"/",cat:"System",desc:"Server status & services"},
-  {name:"Health Check",method:"GET",path:"/health",cat:"System",desc:"Health, uptime & connectivity"},
-];
-
-// ─── Templates for sidebar grid ───
-const TEMPLATES = [
-  {name:"TTS Generate",desc:"Text to speech audio",body:{text:"Hello!"},method:"POST",path:"/tts"},
-  {name:"TTS Voices",desc:"List all voices",body:{list_voices:true},method:"POST",path:"/tts"},
-  {name:"QR PNG",desc:"Standard QR code",body:{data:"https://example.com"},method:"POST",path:"/qr"},
-  {name:"QR WiFi",desc:"WiFi network QR",body:{ssid:"MyWiFi",password:"secret",security:"WPA"},method:"POST",path:"/qr"},
-  {name:"QR SVG",desc:"Vector QR code",body:{data:"https://example.com",format:"svg"},method:"POST",path:"/qr"},
-  {name:"QR Colored",desc:"Custom colors",body:{data:"https://example.com",dark:"#FF0000",scale:15},method:"POST",path:"/qr"},
-  {name:"Download Video",desc:"YouTube 720p",body:{url:"https://youtube.com/watch?v=dQw4w9WgXcQ",quality:"720p"},method:"POST",path:"/unidl"},
-  {name:"Download Audio",desc:"Extract MP3",body:{url:"https://youtube.com/watch?v=dQw4w9WgXcQ",extract_audio:true,audio_format:"mp3"},method:"POST",path:"/unidl"},
-  {name:"Custom POST",desc:"Empty POST request",body:{},method:"POST",path:"/"},
-  {name:"Custom GET",desc:"Empty GET request",body:null,method:"GET",path:"/"},
+  {name:"Server Info",method:"GET",path:"/",desc:"API info and loaded services"},
+  {name:"Health Check",method:"GET",path:"/health",desc:"Health, uptime & connectivity"},
 ];
 
 // ─── Init ───
 function init() {
   checkHealth();
-  renderPresets();
+  renderEndpoints();
   renderCustomList();
-  renderTemplates();
   setupKeyboard();
 }
 
@@ -381,25 +315,17 @@ async function checkHealth() {
   }
 }
 
-// ─── Sidebar presets ───
-function renderPresets() {
-  const list = document.getElementById('presetList');
-  const cats = {};
-  PRESETS.forEach((p,i) => {
-    if (!cats[p.cat]) cats[p.cat] = [];
-    cats[p.cat].push({...p, idx:i});
-  });
-
+// ─── Sidebar endpoints ───
+function renderEndpoints() {
+  const list = document.getElementById('endpointList');
   list.innerHTML = '';
-  for (const [cat, items] of Object.entries(cats)) {
-    items.forEach(p => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="method ${p.method.toLowerCase()}">${p.method}</span>${p.name.replace(cat+' — ','').replace(cat+' ','') }`;
-      li.title = p.desc;
-      li.onclick = () => loadPreset(p);
-      list.appendChild(li);
-    });
-  }
+  ENDPOINTS.forEach(ep => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="method ${ep.method.toLowerCase()}">${ep.method}</span>${ep.name}`;
+    li.title = ep.desc + ' — ' + ep.path;
+    li.onclick = () => loadEndpoint(ep, li);
+    list.appendChild(li);
+  });
 }
 
 function renderCustomList() {
@@ -417,38 +343,19 @@ function renderCustomList() {
   });
 }
 
-function renderTemplates() {
-  const grid = document.getElementById('presetGrid');
-  grid.innerHTML = '';
-  TEMPLATES.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'preset-card';
-    card.innerHTML = `<div class="preset-name">${t.name}</div><div class="preset-desc">${t.desc}</div>`;
-    card.onclick = () => {
-      document.getElementById('methodSelect').value = t.method;
-      document.getElementById('urlInput').value = t.path;
-      document.getElementById('bodyEditor').value = t.body ? JSON.stringify(t.body, null, 2) : '';
-      switchReqTab(document.querySelector('[data-tab="body"]'));
-    };
-    grid.appendChild(card);
-  });
-}
-
-function loadPreset(p) {
-  document.getElementById('methodSelect').value = p.method;
-  document.getElementById('urlInput').value = p.path;
-  document.getElementById('bodyEditor').value = p.body ? JSON.stringify(p.body, null, 2) : '';
-
-  // Highlight active
+function loadEndpoint(ep, el) {
+  document.getElementById('methodSelect').value = ep.method;
+  document.getElementById('urlInput').value = ep.path;
+  document.getElementById('bodyEditor').value = ep.body ? JSON.stringify(ep.body, null, 2) : '';
   document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  el.classList.add('active');
 }
 
 // ─── Tabs ───
 function switchReqTab(el) {
   document.querySelectorAll('#reqTabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['body','headers','params','presets'].forEach(id => {
+  ['body','headers','params'].forEach(id => {
     document.getElementById('tab-'+id).style.display = el.dataset.tab === id ? '' : 'none';
   });
 }
