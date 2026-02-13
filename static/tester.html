@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Tester — Unified API Server</title>
+<style>
+/* ── Reset & Vars ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a3a;
+  --text:#e0e0e8;--dim:#888;--accent:#6c5ce7;--accent2:#a29bfe;
+  --green:#00b894;--red:#e17055;--yellow:#fdcb6e;--blue:#74b9ff;
+  --radius:8px;--mono:'Consolas','Monaco','Courier New',monospace;
+}
+html{font-size:14px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--accent2);text-decoration:none}
+
+/* ── Layout ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.panels{flex:1;display:flex;overflow:hidden}
+.req-panel,.res-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.res-panel{border-left:1px solid var(--border)}
+
+/* ── Sidebar ── */
+.sidebar-header{padding:16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:15px;font-weight:700;color:var(--accent2)}
+.sidebar-header .sub{font-size:11px;color:var(--dim);margin-top:2px}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.status-dot.ok{background:var(--green)}.status-dot.err{background:var(--red)}.status-dot.loading{background:var(--yellow)}
+
+.sidebar-section{padding:8px 12px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);font-weight:600}
+.sidebar-list{list-style:none;padding:4px 8px}
+.sidebar-list li{padding:7px 10px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--dim);display:flex;align-items:center;gap:8px;transition:all .15s}
+.sidebar-list li:hover{background:var(--surface2);color:var(--text)}
+.sidebar-list li.active{background:var(--accent);color:#fff}
+.sidebar-list li .method{font-size:10px;font-weight:700;font-family:var(--mono);padding:1px 5px;border-radius:3px;min-width:36px;text-align:center}
+.sidebar-list li .method.get{background:#00b89422;color:var(--green)}
+.sidebar-list li .method.post{background:#6c5ce722;color:var(--accent2)}
+.sidebar-list li.active .method{background:#fff3;color:#fff}
+
+.add-section{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.add-btn{width:100%;padding:8px;border:1px dashed var(--border);border-radius:var(--radius);background:none;color:var(--dim);cursor:pointer;font-size:12px;transition:all .15s}
+.add-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface)}
+.url-bar{flex:1;display:flex;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.method-select{background:var(--surface2);border:none;color:var(--green);font-family:var(--mono);font-size:12px;font-weight:700;padding:8px 10px;cursor:pointer;border-right:1px solid var(--border);outline:none}
+.method-select option{background:var(--surface);color:var(--text)}
+.url-input{flex:1;background:none;border:none;color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:13px;outline:none}
+.send-btn{padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.send-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.send-btn:active{transform:translateY(0)}
+.send-btn.loading{opacity:.7;cursor:not-allowed}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 12px}
+.tab{padding:8px 14px;font-size:12px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+.tab-badge{font-size:10px;background:var(--surface2);padding:1px 5px;border-radius:8px;margin-left:4px}
+
+/* ── Panel content ── */
+.panel-body{flex:1;overflow:auto;padding:0}
+.panel-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);padding:12px 16px 6px;font-weight:600}
+
+/* ── Editor ── */
+.editor{width:100%;min-height:200px;background:var(--bg);color:var(--text);border:none;font-family:var(--mono);font-size:13px;padding:12px 16px;resize:vertical;outline:none;line-height:1.6;tab-size:2}
+
+/* ── Headers / Params table ── */
+.kv-table{width:100%;border-collapse:collapse}
+.kv-table th{text-align:left;padding:6px 12px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);background:var(--surface)}
+.kv-table td{padding:4px 8px;border-bottom:1px solid var(--border)}
+.kv-table input{width:100%;background:none;border:none;color:var(--text);font-family:var(--mono);font-size:12px;padding:4px;outline:none}
+.kv-table .remove-row{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;opacity:.5;transition:opacity .15s}
+.kv-table .remove-row:hover{opacity:1}
+.add-row-btn{font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;padding:6px 12px}
+.add-row-btn:hover{color:var(--accent2)}
+
+/* ── Response ── */
+.res-status{padding:10px 16px;font-family:var(--mono);font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface)}
+.res-status .code{font-weight:700;padding:2px 8px;border-radius:4px}
+.res-status .code.s2{background:#00b89422;color:var(--green)}
+.res-status .code.s4{background:#e1705522;color:var(--red)}
+.res-status .code.s5{background:#e1705522;color:var(--red)}
+.res-status .time{color:var(--dim);font-size:12px}
+.res-status .size{color:var(--dim);font-size:12px}
+
+.res-body{flex:1;overflow:auto;padding:12px 16px;font-family:var(--mono);font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.res-body.empty{color:var(--dim);font-family:inherit;display:flex;align-items:center;justify-content:center;font-size:13px}
+.res-body img{max-width:100%;border-radius:var(--radius)}
+.res-body audio{width:100%;margin:8px 0}
+.res-body video{max-width:100%;border-radius:var(--radius)}
+
+.res-headers-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.res-headers-table td{padding:4px 12px;border-bottom:1px solid var(--border)}
+.res-headers-table .hkey{color:var(--accent2);white-space:nowrap;width:1%}
+.res-headers-table .hval{color:var(--text);word-break:break-all}
+
+.download-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--border);background:var(--surface)}
+.download-bar button{padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-weight:600}
+.download-bar button:hover{background:var(--accent2)}
+.download-bar .file-info{font-size:12px;color:var(--dim)}
+
+/* ── Templates / Presets ── */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.preset-card{padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s}
+.preset-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.preset-card .preset-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.preset-card .preset-desc{font-size:11px;color:var(--dim)}
+
+/* ── History ── */
+.history-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s}
+.history-item:hover{background:var(--surface2)}
+.history-item .h-method{font-size:10px;font-weight:700;font-family:var(--mono)}
+.history-item .h-method.get{color:var(--green)}.history-item .h-method.post{color:var(--accent2)}
+.history-item .h-url{font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono)}
+.history-item .h-status{font-size:11px;font-weight:700}
+.history-item .h-status.s2{color:var(--green)}.history-item .h-status.s4,.history-item .h-status.s5{color:var(--red)}
+.history-item .h-time{font-size:10px;color:var(--dim)}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* ── Empty state ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);gap:8px;padding:40px}
+.empty-state .icon{font-size:40px;opacity:.3}
+.empty-state p{font-size:13px}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:#000a;z-index:100;display:flex;align-items:center;justify-content:center;display:none}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:500px;max-height:80vh;overflow:auto;padding:24px}
+.modal h2{font-size:16px;margin-bottom:16px}
+.modal label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px;margin-top:12px}
+.modal input,.modal select{width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:13px;outline:none}
+.modal input:focus,.modal select:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.modal-actions button{padding:8px 16px;border:none;border-radius:var(--radius);font-size:13px;cursor:pointer;font-weight:600}
+.modal-actions .cancel{background:var(--surface2);color:var(--dim)}
+.modal-actions .confirm{background:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="status-dot loading" id="statusDot"></span> API Tester</h1>
+      <div class="sub">Unified API Server</div>
+    </div>
+
+    <div class="sidebar-section">Presets</div>
+    <ul class="sidebar-list" id="presetList"></ul>
+
+    <div class="sidebar-section">Custom Requests</div>
+    <ul class="sidebar-list" id="customList"></ul>
+
+    <div class="sidebar-section">History</div>
+    <div id="historyList" style="flex:1;overflow:auto;padding:0 4px"></div>
+
+    <div class="add-section">
+      <button class="add-btn" onclick="openNewRequestModal()">+ New Request</button>
+    </div>
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="url-bar">
+        <select class="method-select" id="methodSelect">
+          <option value="GET">GET</option>
+          <option value="POST" selected>POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+        <input class="url-input" id="urlInput" placeholder="Enter URL or path..." value="/tts">
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendRequest()">Send</button>
+    </div>
+
+    <!-- Panels -->
+    <div class="panels">
+      <!-- Request panel -->
+      <div class="req-panel">
+        <div class="tabs" id="reqTabs">
+          <div class="tab active" data-tab="body" onclick="switchReqTab(this)">Body</div>
+          <div class="tab" data-tab="headers" onclick="switchReqTab(this)">Headers<span class="tab-badge" id="headerCount">1</span></div>
+          <div class="tab" data-tab="params" onclick="switchReqTab(this)">Params</div>
+          <div class="tab" data-tab="presets" onclick="switchReqTab(this)">Templates</div>
+        </div>
+
+        <!-- Body tab -->
+        <div class="panel-body" id="tab-body">
+          <div class="panel-label">JSON Body</div>
+          <textarea class="editor" id="bodyEditor" spellcheck="false" placeholder="Enter JSON body...">{
+  "text": "Hello, world!",
+  "voice": "en-US-JennyNeural"
+}</textarea>
+        </div>
+
+        <!-- Headers tab -->
+        <div class="panel-body" id="tab-headers" style="display:none">
+          <table class="kv-table" id="headersTable">
+            <tr><th>Key</th><th>Value</th><th></th></tr>
+            <tr><td><input value="Content-Type" data-hkey></td><td><input value="application/json" data-hval></td><td><button class="remove-row" onclick="this.closest('tr').remove();updateHeaderCount()">×</button></td></tr>
+          </table>
+          <button class="add-row-btn" onclick="addHeaderRow()">+ Add Header</button>
+        </div>
+
+        <!-- Params tab -->
+        <div class="panel-body" id="tab-params" style="display:none">
+          <table class="kv-table" id="paramsTable">
+            <tr><th>Key</th><th>Value</th><th></th></tr>
+          </table>
+          <button class="add-row-btn" onclick="addParamRow()">+ Add Parameter</button>
+        </div>
+
+        <!-- Templates tab -->
+        <div class="panel-body" id="tab-presets" style="display:none">
+          <div class="preset-grid" id="presetGrid"></div>
+        </div>
+      </div>
+
+      <!-- Response panel -->
+      <div class="res-panel">
+        <div class="tabs" id="resTabs">
+          <div class="tab active" data-tab="res-body" onclick="switchResTab(this)">Response</div>
+          <div class="tab" data-tab="res-headers" onclick="switchResTab(this)">Headers<span class="tab-badge" id="resHeaderCount">0</span></div>
+        </div>
+
+        <div id="resStatusBar" style="display:none"></div>
+
+        <div class="panel-body" id="tab-res-body">
+          <div class="empty-state" id="resEmpty">
+            <div class="icon">↑</div>
+            <p>Send a request to see the response</p>
+            <p style="font-size:11px">Use a preset from the sidebar or type your own</p>
+          </div>
+          <div id="resContent" style="display:none"></div>
+        </div>
+
+        <div class="panel-body" id="tab-res-headers" style="display:none">
+          <table class="res-headers-table" id="resHeadersTable"></table>
+        </div>
+
+        <div id="downloadBar" class="download-bar" style="display:none">
+          <button onclick="downloadResponse()">⬇ Download</button>
+          <span class="file-info" id="fileInfo"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New request modal -->
+<div class="modal-overlay" id="newReqModal">
+  <div class="modal">
+    <h2>New Request</h2>
+    <label>Name</label>
+    <input id="newReqName" placeholder="My Request">
+    <label>Method</label>
+    <select id="newReqMethod"><option>GET</option><option selected>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+    <label>Path</label>
+    <input id="newReqPath" placeholder="/endpoint">
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="confirm" onclick="createCustomRequest()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+const BASE = location.origin;
+let responseBlob = null;
+let responseFilename = 'response';
+let history = [];
+const customRequests = JSON.parse(localStorage.getItem('api_tester_custom') || '[]');
+
+// ─── Presets ───
+const PRESETS = [
+  // TTS
+  {name:"TTS — Basic",method:"POST",path:"/tts",cat:"TTS",desc:"Generate speech with default voice",
+   body:{text:"Hello, world! This is a test of the text to speech API."}},
+  {name:"TTS — Jenny",method:"POST",path:"/tts",cat:"TTS",desc:"US English female voice",
+   body:{text:"Hello! I'm Jenny, a natural sounding US English voice.",voice:"en-US-JennyNeural"}},
+  {name:"TTS — British",method:"POST",path:"/tts",cat:"TTS",desc:"British English male voice",
+   body:{text:"Good day! This is Ryan, a British English voice.",voice:"en-GB-RyanNeural",rate:"+10%"}},
+  {name:"TTS — Full Config",method:"POST",path:"/tts",cat:"TTS",desc:"All settings: voice, rate, pitch, volume",
+   body:{text:"Every setting configured — voice, speed, pitch, and volume!",voice:"en-AU-NatashaNeural",rate:"+20%",pitch:"+5Hz",volume:"+30%"}},
+  {name:"TTS — Slow & Deep",method:"POST",path:"/tts",cat:"TTS",desc:"Slow speech with low pitch",
+   body:{text:"This is slow and deep speech.",rate:"-30%",pitch:"-10Hz"}},
+  {name:"TTS — Fast & High",method:"POST",path:"/tts",cat:"TTS",desc:"Fast speech with high pitch",
+   body:{text:"Speeding up with a high pitch!",rate:"+50%",pitch:"+10Hz"}},
+  {name:"TTS — List Voices",method:"POST",path:"/tts",cat:"TTS",desc:"Get all 400+ available voices",
+   body:{list_voices:true}},
+
+  // QR
+  {name:"QR — Basic PNG",method:"POST",path:"/qr",cat:"QR",desc:"Simple URL QR code",
+   body:{data:"https://github.com"}},
+  {name:"QR — SVG",method:"POST",path:"/qr",cat:"QR",desc:"Scalable vector QR",
+   body:{data:"https://github.com",format:"svg"}},
+  {name:"QR — PDF",method:"POST",path:"/qr",cat:"QR",desc:"Print-ready PDF",
+   body:{data:"https://github.com",format:"pdf"}},
+  {name:"QR — Colored",method:"POST",path:"/qr",cat:"QR",desc:"Red on white custom colors",
+   body:{data:"https://github.com",dark:"#FF0000",light:"#FFFFFF",scale:15}},
+  {name:"QR — Styled",method:"POST",path:"/qr",cat:"QR",desc:"Blue on transparent SVG",
+   body:{data:"https://github.com",format:"svg",dark:"#0066FF",light:"transparent",scale:12}},
+  {name:"QR — High EC",method:"POST",path:"/qr",cat:"QR",desc:"Maximum error correction",
+   body:{data:"https://github.com",error_correction:"H",scale:15,border:2}},
+  {name:"QR — Micro",method:"POST",path:"/qr",cat:"QR",desc:"Tiny Micro QR code",
+   body:{data:"Hi",micro:true,scale:20}},
+  {name:"QR — WiFi WPA",method:"POST",path:"/qr",cat:"QR",desc:"WiFi connection QR code",
+   body:{ssid:"MyNetwork",password:"SuperSecret123",security:"WPA"}},
+  {name:"QR — WiFi Open",method:"POST",path:"/qr",cat:"QR",desc:"Open network WiFi QR",
+   body:{ssid:"FreeWiFi",security:"nopass"}},
+  {name:"QR — WiFi Styled",method:"POST",path:"/qr",cat:"QR",desc:"Colored WiFi QR",
+   body:{ssid:"StyledNet",password:"pass123",security:"WPA",dark:"#FF6600",light:"#FFFFFF",scale:15}},
+
+  // Download
+  {name:"DL — YouTube 720p",method:"POST",path:"/unidl",cat:"Download",desc:"YouTube video at 720p",
+   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"720p"}},
+  {name:"DL — YouTube 1080p",method:"POST",path:"/unidl",cat:"Download",desc:"YouTube video at 1080p",
+   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"1080p"}},
+  {name:"DL — YouTube Audio",method:"POST",path:"/unidl",cat:"Download",desc:"Extract audio as MP3",
+   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",extract_audio:true,audio_format:"mp3"}},
+  {name:"DL — YouTube Best",method:"POST",path:"/unidl",cat:"Download",desc:"Best available quality",
+   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"best"}},
+  {name:"DL — SoundCloud",method:"POST",path:"/unidl",cat:"Download",desc:"SoundCloud audio track",
+   body:{url:"https://soundcloud.com/rick-astley-official/never-gonna-give-you-up-4",quality:"audio"}},
+  {name:"DL — Full Config",method:"POST",path:"/unidl",cat:"Download",desc:"Video + subs + thumbnail + metadata",
+   body:{url:"https://www.youtube.com/watch?v=dQw4w9WgXcQ",quality:"1080p",subtitles:true,subtitle_langs:["en"],embed_subtitles:true,embed_thumbnail:true,add_metadata:true}},
+
+  // System
+  {name:"Server Info",method:"GET",path:"/",cat:"System",desc:"Server status & services"},
+  {name:"Health Check",method:"GET",path:"/health",cat:"System",desc:"Health, uptime & connectivity"},
+];
+
+// ─── Templates for sidebar grid ───
+const TEMPLATES = [
+  {name:"TTS Generate",desc:"Text to speech audio",body:{text:"Hello!"},method:"POST",path:"/tts"},
+  {name:"TTS Voices",desc:"List all voices",body:{list_voices:true},method:"POST",path:"/tts"},
+  {name:"QR PNG",desc:"Standard QR code",body:{data:"https://example.com"},method:"POST",path:"/qr"},
+  {name:"QR WiFi",desc:"WiFi network QR",body:{ssid:"MyWiFi",password:"secret",security:"WPA"},method:"POST",path:"/qr"},
+  {name:"QR SVG",desc:"Vector QR code",body:{data:"https://example.com",format:"svg"},method:"POST",path:"/qr"},
+  {name:"QR Colored",desc:"Custom colors",body:{data:"https://example.com",dark:"#FF0000",scale:15},method:"POST",path:"/qr"},
+  {name:"Download Video",desc:"YouTube 720p",body:{url:"https://youtube.com/watch?v=dQw4w9WgXcQ",quality:"720p"},method:"POST",path:"/unidl"},
+  {name:"Download Audio",desc:"Extract MP3",body:{url:"https://youtube.com/watch?v=dQw4w9WgXcQ",extract_audio:true,audio_format:"mp3"},method:"POST",path:"/unidl"},
+  {name:"Custom POST",desc:"Empty POST request",body:{},method:"POST",path:"/"},
+  {name:"Custom GET",desc:"Empty GET request",body:null,method:"GET",path:"/"},
+];
+
+// ─── Init ───
+function init() {
+  checkHealth();
+  renderPresets();
+  renderCustomList();
+  renderTemplates();
+  setupKeyboard();
+}
+
+async function checkHealth() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const r = await fetch(BASE + '/health');
+    const d = await r.json();
+    dot.className = 'status-dot ' + (d.status === 'healthy' ? 'ok' : 'err');
+  } catch {
+    dot.className = 'status-dot err';
+  }
+}
+
+// ─── Sidebar presets ───
+function renderPresets() {
+  const list = document.getElementById('presetList');
+  const cats = {};
+  PRESETS.forEach((p,i) => {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push({...p, idx:i});
+  });
+
+  list.innerHTML = '';
+  for (const [cat, items] of Object.entries(cats)) {
+    items.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="method ${p.method.toLowerCase()}">${p.method}</span>${p.name.replace(cat+' — ','').replace(cat+' ','') }`;
+      li.title = p.desc;
+      li.onclick = () => loadPreset(p);
+      list.appendChild(li);
+    });
+  }
+}
+
+function renderCustomList() {
+  const list = document.getElementById('customList');
+  list.innerHTML = '';
+  customRequests.forEach((r,i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="method ${r.method.toLowerCase()}">${r.method}</span>${r.name}`;
+    li.onclick = () => {
+      document.getElementById('methodSelect').value = r.method;
+      document.getElementById('urlInput').value = r.path;
+      document.getElementById('bodyEditor').value = r.body || '';
+    };
+    list.appendChild(li);
+  });
+}
+
+function renderTemplates() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = '';
+  TEMPLATES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'preset-card';
+    card.innerHTML = `<div class="preset-name">${t.name}</div><div class="preset-desc">${t.desc}</div>`;
+    card.onclick = () => {
+      document.getElementById('methodSelect').value = t.method;
+      document.getElementById('urlInput').value = t.path;
+      document.getElementById('bodyEditor').value = t.body ? JSON.stringify(t.body, null, 2) : '';
+      switchReqTab(document.querySelector('[data-tab="body"]'));
+    };
+    grid.appendChild(card);
+  });
+}
+
+function loadPreset(p) {
+  document.getElementById('methodSelect').value = p.method;
+  document.getElementById('urlInput').value = p.path;
+  document.getElementById('bodyEditor').value = p.body ? JSON.stringify(p.body, null, 2) : '';
+
+  // Highlight active
+  document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Tabs ───
+function switchReqTab(el) {
+  document.querySelectorAll('#reqTabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['body','headers','params','presets'].forEach(id => {
+    document.getElementById('tab-'+id).style.display = el.dataset.tab === id ? '' : 'none';
+  });
+}
+
+function switchResTab(el) {
+  document.querySelectorAll('#resTabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['res-body','res-headers'].forEach(id => {
+    document.getElementById('tab-'+id).style.display = el.dataset.tab === id ? '' : 'none';
+  });
+}
+
+// ─── Headers & Params ───
+function addHeaderRow() {
+  const table = document.getElementById('headersTable');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input data-hkey placeholder="Header name"></td><td><input data-hval placeholder="Value"></td><td><button class="remove-row" onclick="this.closest('tr').remove();updateHeaderCount()">×</button></td>`;
+  table.appendChild(tr);
+  updateHeaderCount();
+}
+
+function addParamRow() {
+  const table = document.getElementById('paramsTable');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input data-pkey placeholder="Param name"></td><td><input data-pval placeholder="Value"></td><td><button class="remove-row" onclick="this.closest('tr').remove()">×</button></td>`;
+  table.appendChild(tr);
+}
+
+function updateHeaderCount() {
+  const rows = document.querySelectorAll('#headersTable [data-hkey]');
+  document.getElementById('headerCount').textContent = rows.length;
+}
+
+function getHeaders() {
+  const headers = {};
+  document.querySelectorAll('#headersTable tr').forEach(tr => {
+    const k = tr.querySelector('[data-hkey]');
+    const v = tr.querySelector('[data-hval]');
+    if (k && v && k.value.trim()) headers[k.value.trim()] = v.value;
+  });
+  return headers;
+}
+
+function getParams() {
+  const params = new URLSearchParams();
+  document.querySelectorAll('#paramsTable tr').forEach(tr => {
+    const k = tr.querySelector('[data-pkey]');
+    const v = tr.querySelector('[data-pval]');
+    if (k && v && k.value.trim()) params.append(k.value.trim(), v.value);
+  });
+  return params.toString();
+}
+
+// ─── Send Request ───
+async function sendRequest() {
+  const btn = document.getElementById('sendBtn');
+  if (btn.classList.contains('loading')) return;
+  btn.classList.add('loading');
+  btn.textContent = 'Sending...';
+
+  const method = document.getElementById('methodSelect').value;
+  let url = document.getElementById('urlInput').value.trim();
+  const bodyText = document.getElementById('bodyEditor').value.trim();
+  const headers = getHeaders();
+  const params = getParams();
+
+  // Build full URL
+  if (!url.startsWith('http')) url = BASE + (url.startsWith('/') ? '' : '/') + url;
+  if (params) url += (url.includes('?') ? '&' : '?') + params;
+
+  const opts = { method, headers };
+  if (['POST','PUT','PATCH'].includes(method) && bodyText) {
+    opts.body = bodyText;
+  }
+
+  const startTime = performance.now();
+  responseBlob = null;
+
+  try {
+    const response = await fetch(url, opts);
+    const elapsed = Math.round(performance.now() - startTime);
+    const contentType = response.headers.get('content-type') || '';
+
+    // Read response
+    const blob = await response.blob();
+    const size = blob.size;
+
+    // Show status bar
+    const statusBar = document.getElementById('resStatusBar');
+    const codeClass = response.status < 300 ? 's2' : response.status < 500 ? 's4' : 's5';
+    statusBar.style.display = '';
+    statusBar.className = 'res-status';
+    statusBar.innerHTML = `<span class="code ${codeClass}">${response.status} ${response.statusText}</span><span class="time">${elapsed}ms</span><span class="size">${formatSize(size)}</span>`;
+
+    // Response headers
+    const resHeadersTable = document.getElementById('resHeadersTable');
+    resHeadersTable.innerHTML = '';
+    let hCount = 0;
+    response.headers.forEach((v, k) => {
+      resHeadersTable.innerHTML += `<tr><td class="hkey">${escHtml(k)}</td><td class="hval">${escHtml(v)}</td></tr>`;
+      hCount++;
+    });
+    document.getElementById('resHeaderCount').textContent = hCount;
+
+    // Response body
+    const resContent = document.getElementById('resContent');
+    const resEmpty = document.getElementById('resEmpty');
+    const downloadBar = document.getElementById('downloadBar');
+    resEmpty.style.display = 'none';
+    resContent.style.display = '';
+    resContent.innerHTML = '';
+
+    // Get filename from Content-Disposition
+    const cd = response.headers.get('content-disposition') || '';
+    const fnMatch = cd.match(/filename[*]?=(?:UTF-8'')?["']?([^"';\n]+)/i);
+    responseFilename = fnMatch ? decodeURIComponent(fnMatch[1]) : 'response';
+
+    if (contentType.includes('json')) {
+      // JSON
+      const text = await blob.text();
+      try {
+        const formatted = JSON.stringify(JSON.parse(text), null, 2);
+        resContent.innerHTML = `<pre class="res-body">${syntaxHighlight(formatted)}</pre>`;
+      } catch {
+        resContent.innerHTML = `<pre class="res-body">${escHtml(text)}</pre>`;
+      }
+      downloadBar.style.display = 'none';
+    } else if (contentType.includes('text')) {
+      const text = await blob.text();
+      resContent.innerHTML = `<pre class="res-body">${escHtml(text)}</pre>`;
+      downloadBar.style.display = 'none';
+    } else if (contentType.includes('audio')) {
+      const audioUrl = URL.createObjectURL(blob);
+      resContent.innerHTML = `<div class="res-body"><p style="margin-bottom:12px;color:var(--dim)">🔊 Audio response — ${formatSize(size)}</p><audio controls src="${audioUrl}"></audio></div>`;
+      responseBlob = blob;
+      document.getElementById('fileInfo').textContent = `${responseFilename} (${formatSize(size)})`;
+      downloadBar.style.display = '';
+    } else if (contentType.includes('video')) {
+      const videoUrl = URL.createObjectURL(blob);
+      resContent.innerHTML = `<div class="res-body"><p style="margin-bottom:12px;color:var(--dim)">🎬 Video response — ${formatSize(size)}</p><video controls src="${videoUrl}" style="max-width:100%"></video></div>`;
+      responseBlob = blob;
+      document.getElementById('fileInfo').textContent = `${responseFilename} (${formatSize(size)})`;
+      downloadBar.style.display = '';
+    } else if (contentType.includes('image/png') || contentType.includes('image/jpeg') || contentType.includes('image/gif') || contentType.includes('image/webp')) {
+      const imgUrl = URL.createObjectURL(blob);
+      resContent.innerHTML = `<div class="res-body" style="text-align:center;padding:20px"><img src="${imgUrl}" alt="QR Code"></div>`;
+      responseBlob = blob;
+      document.getElementById('fileInfo').textContent = `${responseFilename} (${formatSize(size)})`;
+      downloadBar.style.display = '';
+    } else if (contentType.includes('svg')) {
+      const text = await blob.text();
+      const svgBlob = new Blob([text], {type:'image/svg+xml'});
+      const svgUrl = URL.createObjectURL(svgBlob);
+      resContent.innerHTML = `<div class="res-body" style="text-align:center;padding:20px"><img src="${svgUrl}" alt="QR Code" style="max-width:400px"><details style="margin-top:16px;text-align:left"><summary style="cursor:pointer;color:var(--dim);font-size:12px">View SVG source</summary><pre style="margin-top:8px;font-size:11px;color:var(--dim)">${escHtml(text)}</pre></details></div>`;
+      responseBlob = blob;
+      document.getElementById('fileInfo').textContent = `${responseFilename} (${formatSize(size)})`;
+      downloadBar.style.display = '';
+    } else if (contentType.includes('pdf') || contentType.includes('postscript') || contentType.includes('octet-stream')) {
+      resContent.innerHTML = `<div class="res-body empty" style="flex-direction:column;gap:12px"><div style="font-size:32px">📄</div><p>Binary file — ${formatSize(size)}</p><p style="font-size:11px;color:var(--dim)">${contentType}</p></div>`;
+      responseBlob = blob;
+      document.getElementById('fileInfo').textContent = `${responseFilename} (${formatSize(size)})`;
+      downloadBar.style.display = '';
+    } else {
+      const text = await blob.text();
+      resContent.innerHTML = `<pre class="res-body">${escHtml(text)}</pre>`;
+      downloadBar.style.display = 'none';
+    }
+
+    // Add to history
+    addHistory(method, url.replace(BASE, ''), response.status, elapsed);
+
+  } catch (err) {
+    document.getElementById('resStatusBar').style.display = '';
+    document.getElementById('resStatusBar').innerHTML = `<span class="code s5">Error</span><span class="time">${err.message}</span>`;
+    document.getElementById('resEmpty').style.display = 'none';
+    document.getElementById('resContent').style.display = '';
+    document.getElementById('resContent').innerHTML = `<pre class="res-body" style="color:var(--red)">${escHtml(err.stack || err.message)}</pre>`;
+    document.getElementById('downloadBar').style.display = 'none';
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Send';
+}
+
+// ─── Download ───
+function downloadResponse() {
+  if (!responseBlob) return;
+  const url = URL.createObjectURL(responseBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = responseFilename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── History ───
+function addHistory(method, path, status, time) {
+  history.unshift({method, path, status, time, ts: Date.now()});
+  if (history.length > 50) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  history.forEach(h => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const codeClass = h.status < 300 ? 's2' : h.status < 500 ? 's4' : 's5';
+    div.innerHTML = `<span class="h-method ${h.method.toLowerCase()}">${h.method}</span><span class="h-url">${escHtml(h.path)}</span><span class="h-status ${codeClass}">${h.status}</span><span class="h-time">${h.time}ms</span>`;
+    div.onclick = () => {
+      document.getElementById('methodSelect').value = h.method;
+      document.getElementById('urlInput').value = h.path;
+    };
+    list.appendChild(div);
+  });
+}
+
+// ─── Custom requests ───
+function openNewRequestModal() {
+  document.getElementById('newReqModal').classList.add('show');
+  document.getElementById('newReqName').focus();
+}
+
+function closeModal() {
+  document.getElementById('newReqModal').classList.remove('show');
+}
+
+function createCustomRequest() {
+  const name = document.getElementById('newReqName').value.trim() || 'Untitled';
+  const method = document.getElementById('newReqMethod').value;
+  const path = document.getElementById('newReqPath').value.trim() || '/';
+  customRequests.push({name, method, path, body: ''});
+  localStorage.setItem('api_tester_custom', JSON.stringify(customRequests));
+  renderCustomList();
+  closeModal();
+
+  document.getElementById('methodSelect').value = method;
+  document.getElementById('urlInput').value = path;
+  document.getElementById('bodyEditor').value = '';
+}
+
+// ─── Keyboard shortcuts ───
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      sendRequest();
+    }
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // Tab in editor
+  document.getElementById('bodyEditor').addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const ta = e.target;
+      const start = ta.selectionStart;
+      ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(ta.selectionEnd);
+      ta.selectionStart = ta.selectionEnd = start + 2;
+    }
+  });
+}
+
+// ─── Utils ───
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(2) + ' MB';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function syntaxHighlight(json) {
+  return json.replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+    let cls = 'color:var(--yellow)'; // number
+    if (/^"/.test(match)) {
+      cls = /:$/.test(match) ? 'color:var(--accent2)' : 'color:var(--green)'; // key : string
+    } else if (/true|false/.test(match)) {
+      cls = 'color:var(--blue)';
+    } else if (/null/.test(match)) {
+      cls = 'color:var(--red)';
+    }
+    return `<span style="${cls}">${escHtml(match)}</span>`;
+  });
+}
+
+// ─── Boot ───
+init();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>
