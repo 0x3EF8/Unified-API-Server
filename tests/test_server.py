@@ -15,7 +15,7 @@ from utils import check_internet
 @pytest.mark.unit
 def test_root_endpoint(test_client: TestClient):
     """Test root endpoint returns API information."""
-    response = test_client.get("/")
+    response = test_client.get("/api")
 
     assert response.status_code == 200
     data = response.json()
@@ -73,7 +73,7 @@ def test_health_endpoint_degraded_no_internet(test_client: TestClient):
 @pytest.mark.unit
 def test_root_lists_services(test_client: TestClient):
     """Test root endpoint lists all loaded services."""
-    response = test_client.get("/")
+    response = test_client.get("/api")
 
     assert response.status_code == 200
     data = response.json()

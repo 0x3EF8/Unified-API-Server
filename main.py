@@ -181,8 +181,8 @@ def _extract_field_info(route) -> list:
         return None
 
 
-@app.get("/")
-async def root():
+@app.get("/api")
+async def api_info():
     """API info and loaded services."""
     service_info = get_loaded_services()
     services = {}
@@ -250,7 +250,7 @@ async def health():
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-@app.get("/tester")
+@app.get("/")
 async def api_tester():
     """Built-in API tester web UI."""
     return FileResponse(STATIC_DIR / "tester.html", media_type="text/html")
