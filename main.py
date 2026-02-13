@@ -5,12 +5,14 @@ Drop service folders into services/ and they're auto-loaded.
 
 import asyncio
 import logging
+from pathlib import Path
 from datetime import datetime
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from config import Config
 from utils import check_internet
@@ -96,6 +98,13 @@ async def health():
         "services_failed": service_info["failed_services"],
         "services": {name: "operational" for name in service_info["services"]},
     }
+
+
+@app.get("/playground", response_class=HTMLResponse)
+async def playground():
+    """Built-in API testing playground."""
+    html_path = Path(__file__).parent / "static" / "playground.html"
+    return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

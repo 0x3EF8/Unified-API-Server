@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unified API Server — Playground</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a3a;--primary:#6366f1;--primary-hover:#818cf8;--text:#e2e8f0;--text-dim:#94a3b8;--success:#22c55e;--error:#ef4444;--warning:#f59e0b;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--primary-hover)}
+
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+.header h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .version{font-size:11px;background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:20px;color:var(--text-dim)}
+.header .status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Tabs */
+.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px}
+.tab{padding:12px 24px;font-size:14px;font-weight:500;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab .badge{font-size:10px;background:var(--primary);color:#fff;padding:1px 6px;border-radius:10px;margin-left:6px}
+
+/* Layout */
+.container{max-width:1100px;margin:0 auto;padding:24px}
+.panel{display:none}
+.panel.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
+.card h3{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card h3 .method{font-size:11px;font-weight:700;background:#6366f120;color:var(--primary);padding:2px 8px;border-radius:4px;letter-spacing:.5px}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select,.form-group textarea{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:.2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px #6366f120}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-group input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary)}
+.form-group .hint{font-size:11px;color:var(--text-dim)}
+.check-row{display:flex;align-items:center;gap:8px;flex-direction:row}
+.check-row label{text-transform:none;font-weight:400;font-size:13px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:.2s;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 4px 16px #6366f140}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--primary)}
+.btn-group{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+
+/* Output */
+.output{margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none}
+.output.visible{display:block}
+.output-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:13px}
+.output-status{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.output-status.s200{background:#22c55e20;color:var(--success)}
+.output-status.s400,.output-status.s422{background:#f59e0b20;color:var(--warning)}
+.output-status.s500,.output-status.s503{background:#ef444420;color:var(--error)}
+.output-body{padding:16px}
+.output-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.output-meta .tag{font-size:11px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:20px;color:var(--text-dim)}
+
+/* Audio/Image preview */
+.preview-area{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px}
+.preview-area audio{width:100%;max-width:500px}
+.preview-area img{max-width:100%;max-height:400px;border-radius:8px;background:#fff}
+.preview-area .txt-preview{background:var(--surface);padding:16px;border-radius:8px;font-family:'Courier New',monospace;font-size:12px;white-space:pre;overflow-x:auto;max-width:100%;line-height:1}
+.download-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--primary);color:#fff;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.download-link:hover{background:var(--primary-hover);color:#fff}
+
+/* Loading */
+.spinner{display:none;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading .spinner{display:block}
+.loading .btn-text{display:none}
+
+/* Progress */
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:12px;display:none}
+.progress-bar.active{display:block}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--primary),#a78bfa);border-radius:2px;width:0;transition:width .3s;animation:indeterminate 1.5s infinite}
+@keyframes indeterminate{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+
+/* Voice list */
+.voice-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+.voice-table th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.voice-table td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.voice-table tr:hover td{background:var(--surface)}
+.voice-filter{margin-bottom:12px}
+
+/* Responsive */
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}.tabs{overflow-x:auto}.tab{white-space:nowrap;padding:12px 16px}}
+
+/* Collapsible */
+.collapsible{cursor:pointer;user-select:none}
+.collapsible::after{content:'▸';margin-left:8px;font-size:12px;transition:transform .2s}
+.collapsible.open::after{transform:rotate(90deg)}
+.collapse-body{display:none;margin-top:12px}
+.collapse-body.open{display:block}
+
+/* Section separator */
+.separator{border:none;border-top:1px solid var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Unified API Server</h1>
+  <span class="version">v1.0.0</span>
+  <div class="status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Checking...</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="tts">🔊 Text-to-Speech</div>
+  <div class="tab" data-tab="qr">📱 QR Code</div>
+  <div class="tab" data-tab="dl">📥 Download</div>
+</div>
+
+<!-- ═══════════════ TTS ═══════════════ -->
+<div class="container">
+<div class="panel active" id="panel-tts">
+  <div class="card">
+    <h3><span class="method">POST</span> /tts — Generate Speech</h3>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Text</label>
+        <textarea id="tts-text" placeholder="Enter text to convert to speech..." rows="3">Hello! This is a test of the Unified API Server text-to-speech service.</textarea>
+      </div>
+      <div class="form-group">
+        <label>Voice</label>
+        <select id="tts-voice">
+          <option value="">Default (en-US-AnaNeural)</option>
+          <option value="en-US-JennyNeural">Jenny (US Female)</option>
+          <option value="en-US-GuyNeural">Guy (US Male)</option>
+          <option value="en-US-AriaNeural">Aria (US Female)</option>
+          <option value="en-US-DavisNeural">Davis (US Male)</option>
+          <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+          <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
+          <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
+          <option value="en-AU-WilliamNeural">William (AU Male)</option>
+          <option value="ja-JP-NanamiNeural">Nanami (Japanese)</option>
+          <option value="ko-KR-SunHiNeural">SunHi (Korean)</option>
+          <option value="zh-CN-XiaoxiaoNeural">Xiaoxiao (Chinese)</option>
+          <option value="es-ES-ElviraNeural">Elvira (Spanish)</option>
+          <option value="fr-FR-DeniseNeural">Denise (French)</option>
+          <option value="de-DE-KatjaNeural">Katja (German)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Rate (speed)</label>
+        <select id="tts-rate">
+          <option value="-50%">Very Slow (-50%)</option>
+          <option value="-30%">Slow (-30%)</option>
+          <option value="+0%" selected>Normal (+0%)</option>
+          <option value="+20%">Fast (+20%)</option>
+          <option value="+50%">Very Fast (+50%)</option>
+          <option value="+100%">Maximum (+100%)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Pitch</label>
+        <select id="tts-pitch">
+          <option value="-20Hz">Very Low (-20Hz)</option>
+          <option value="-10Hz">Low (-10Hz)</option>
+          <option value="+0Hz" selected>Normal (+0Hz)</option>
+          <option value="+10Hz">High (+10Hz)</option>
+          <option value="+20Hz">Very High (+20Hz)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Volume</label>
+        <select id="tts-volume">
+          <option value="-50%">Quiet (-50%)</option>
+          <option value="-25%">Soft (-25%)</option>
+          <option value="+0%" selected>Normal (+0%)</option>
+          <option value="+25%">Loud (+25%)</option>
+          <option value="+50%">Very Loud (+50%)</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="tts-generate" onclick="generateTTS()">
+        <span class="spinner"></span>
+        <span class="btn-text">🔊 Generate Speech</span>
+      </button>
+      <button class="btn btn-secondary" onclick="listVoices()">📋 List All Voices</button>
+    </div>
+    <div class="progress-bar" id="tts-progress"><div class="fill"></div></div>
+    <div class="output" id="tts-output">
+      <div class="output-header">
+        <span class="output-status" id="tts-status-badge"></span>
+        <span id="tts-output-info"></span>
+      </div>
+      <div class="output-body">
+        <div class="output-meta" id="tts-meta"></div>
+        <div class="preview-area" id="tts-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ QR ═══════════════ -->
+<div class="panel" id="panel-qr">
+  <div class="card">
+    <h3><span class="method">POST</span> /qr — Generate QR Code</h3>
+
+    <!-- Mode toggle -->
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>Mode</label>
+        <select id="qr-mode" onchange="toggleQRMode()">
+          <option value="data">Standard QR</option>
+          <option value="wifi">WiFi QR</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Standard fields -->
+    <div id="qr-standard-fields">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Data</label>
+          <input type="text" id="qr-data" value="https://github.com/0x3EF8" placeholder="URL, text, or any data...">
+        </div>
+      </div>
+    </div>
+
+    <!-- WiFi fields -->
+    <div id="qr-wifi-fields" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>SSID (Network Name)</label>
+          <input type="text" id="qr-ssid" placeholder="MyNetwork">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="text" id="qr-password" placeholder="Password (leave empty for open)">
+        </div>
+        <div class="form-group">
+          <label>Security</label>
+          <select id="qr-security">
+            <option value="WPA">WPA/WPA2</option>
+            <option value="WEP">WEP</option>
+            <option value="nopass">Open (No Password)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:24px">
+            <input type="checkbox" id="qr-hidden">
+            <label for="qr-hidden">Hidden Network</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="separator">
+
+    <!-- Shared config -->
+    <h3 class="collapsible open" onclick="toggleCollapse(this)">Appearance</h3>
+    <div class="collapse-body open">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Format</label>
+          <select id="qr-format">
+            <option value="png">PNG (Raster)</option>
+            <option value="svg">SVG (Vector)</option>
+            <option value="pdf">PDF (Print)</option>
+            <option value="eps">EPS (Adobe)</option>
+            <option value="txt">TXT (ASCII Art)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Error Correction</label>
+          <select id="qr-ec">
+            <option value="L">L — 7% recovery</option>
+            <option value="M" selected>M — 15% recovery</option>
+            <option value="Q">Q — 25% recovery</option>
+            <option value="H">H — 30% recovery</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Scale <span class="hint">(module size 1–100)</span></label>
+          <input type="number" id="qr-scale" value="10" min="1" max="100">
+        </div>
+        <div class="form-group">
+          <label>Border <span class="hint">(quiet zone modules)</span></label>
+          <input type="number" id="qr-border" value="4" min="0">
+        </div>
+        <div class="form-group">
+          <label>Dark Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="qr-dark-picker" value="#000000" style="width:40px;height:36px;padding:2px;border-radius:6px">
+            <input type="text" id="qr-dark" value="#000000" style="flex:1" placeholder="#000000 or 'black'">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Light Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="qr-light-picker" value="#ffffff" style="width:40px;height:36px;padding:2px;border-radius:6px">
+            <input type="text" id="qr-light" value="#ffffff" style="flex:1" placeholder="#ffffff, 'white', or 'transparent'">
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="qr-micro">
+            <label for="qr-micro">Force Micro QR</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="qr-boost" checked>
+            <label for="qr-boost">Boost Error Correction</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="qr-generate" onclick="generateQR()">
+        <span class="spinner"></span>
+        <span class="btn-text">📱 Generate QR Code</span>
+      </button>
+    </div>
+    <div class="progress-bar" id="qr-progress"><div class="fill"></div></div>
+    <div class="output" id="qr-output">
+      <div class="output-header">
+        <span class="output-status" id="qr-status-badge"></span>
+        <span id="qr-output-info"></span>
+      </div>
+      <div class="output-body">
+        <div class="output-meta" id="qr-meta"></div>
+        <div class="preview-area" id="qr-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DOWNLOAD ═══════════════ -->
+<div class="panel" id="panel-dl">
+  <div class="card">
+    <h3><span class="method">POST</span> /unidl — Universal Download</h3>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px">
+      Download from YouTube, Twitter/X, Reddit, Instagram, TikTok, SoundCloud, Vimeo, and 1000+ sites.
+    </p>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>URL</label>
+        <input type="text" id="dl-url" placeholder="https://www.youtube.com/watch?v=..." value="">
+      </div>
+      <div class="form-group">
+        <label>Quality</label>
+        <select id="dl-quality">
+          <option value="best">Best Available</option>
+          <option value="1080p">1080p</option>
+          <option value="720p" selected>720p</option>
+          <option value="480p">480p</option>
+          <option value="audio">Audio Only</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Audio Format <span class="hint">(when extracting audio)</span></label>
+        <select id="dl-audio-format">
+          <option value="">Auto</option>
+          <option value="mp3">MP3</option>
+          <option value="m4a">M4A</option>
+          <option value="opus">Opus</option>
+          <option value="wav">WAV</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="separator">
+    <h3 class="collapsible" onclick="toggleCollapse(this)">Advanced Options</h3>
+    <div class="collapse-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Video Codec</label>
+          <select id="dl-codec">
+            <option value="">Auto</option>
+            <option value="h264">H.264</option>
+            <option value="h265">H.265</option>
+            <option value="vp9">VP9</option>
+            <option value="av1">AV1</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rate Limit</label>
+          <input type="text" id="dl-rate-limit" placeholder="e.g. 1M, 500K">
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-extract-audio">
+            <label for="dl-extract-audio">Extract Audio Only</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-subtitles">
+            <label for="dl-subtitles">Download Subtitles</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-embed-subs">
+            <label for="dl-embed-subs">Embed Subtitles</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-thumbnail">
+            <label for="dl-thumbnail">Embed Thumbnail</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-metadata" checked>
+            <label for="dl-metadata">Add Metadata</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="check-row" style="margin-top:8px">
+            <input type="checkbox" id="dl-free-formats" checked>
+            <label for="dl-free-formats">Prefer Free Formats</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="dl-download" onclick="downloadMedia()">
+        <span class="spinner"></span>
+        <span class="btn-text">📥 Download</span>
+      </button>
+    </div>
+    <div class="progress-bar" id="dl-progress"><div class="fill"></div></div>
+    <div class="output" id="dl-output">
+      <div class="output-header">
+        <span class="output-status" id="dl-status-badge"></span>
+        <span id="dl-output-info"></span>
+      </div>
+      <div class="output-body">
+        <div class="output-meta" id="dl-meta"></div>
+        <div class="preview-area" id="dl-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ── Tab switching ───────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Collapsible sections ────────────────────────────────
+function toggleCollapse(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+// ── QR mode toggle ──────────────────────────────────────
+function toggleQRMode() {
+  const mode = document.getElementById('qr-mode').value;
+  document.getElementById('qr-standard-fields').style.display = mode === 'data' ? '' : 'none';
+  document.getElementById('qr-wifi-fields').style.display = mode === 'wifi' ? '' : 'none';
+}
+
+// ── Color picker sync ───────────────────────────────────
+document.getElementById('qr-dark-picker').addEventListener('input', e => {
+  document.getElementById('qr-dark').value = e.target.value;
+});
+document.getElementById('qr-light-picker').addEventListener('input', e => {
+  document.getElementById('qr-light').value = e.target.value;
+});
+document.getElementById('qr-dark').addEventListener('input', e => {
+  try { document.getElementById('qr-dark-picker').value = e.target.value; } catch {}
+});
+document.getElementById('qr-light').addEventListener('input', e => {
+  try { document.getElementById('qr-light-picker').value = e.target.value; } catch {}
+});
+
+// ── Health check ────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    if (d.status === 'healthy') {
+      dot.style.background = 'var(--success)';
+      txt.textContent = `Healthy · ${d.services_loaded} services · ${fmtUptime(d.uptime)}`;
+    } else {
+      dot.style.background = 'var(--warning)';
+      txt.textContent = `Degraded · No Internet`;
+    }
+  } catch {
+    document.getElementById('statusDot').style.background = 'var(--error)';
+    document.getElementById('statusText').textContent = 'Offline';
+  }
+}
+
+function fmtUptime(s) {
+  if (s < 60) return Math.round(s) + 's';
+  if (s < 3600) return Math.round(s/60) + 'm';
+  return Math.round(s/3600) + 'h ' + Math.round((s%3600)/60) + 'm';
+}
+
+checkHealth();
+setInterval(checkHealth, 15000);
+
+// ── Helpers ─────────────────────────────────────────────
+function showLoading(btnId, progressId) {
+  document.getElementById(btnId).classList.add('loading');
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(progressId).classList.add('active');
+}
+
+function hideLoading(btnId, progressId) {
+  document.getElementById(btnId).classList.remove('loading');
+  document.getElementById(btnId).disabled = false;
+  document.getElementById(progressId).classList.remove('active');
+}
+
+function showOutput(id, status, info, metaTags, previewHTML) {
+  const out = document.getElementById(id + '-output');
+  out.classList.add('visible');
+  const badge = document.getElementById(id + '-status-badge');
+  badge.textContent = status;
+  badge.className = 'output-status s' + status;
+  document.getElementById(id + '-output-info').textContent = info;
+  document.getElementById(id + '-meta').innerHTML = metaTags.map(t => `<span class="tag">${t}</span>`).join('');
+  document.getElementById(id + '-preview').innerHTML = previewHTML;
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ── TTS Generate ────────────────────────────────────────
+async function generateTTS() {
+  const text = document.getElementById('tts-text').value.trim();
+  if (!text) return alert('Enter some text first');
+
+  showLoading('tts-generate', 'tts-progress');
+
+  const body = { text };
+  const voice = document.getElementById('tts-voice').value;
+  if (voice) body.voice = voice;
+  body.rate = document.getElementById('tts-rate').value;
+  body.pitch = document.getElementById('tts-pitch').value;
+  body.volume = document.getElementById('tts-volume').value;
+
+  try {
+    const r = await fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      showOutput('tts', r.status, err.message || 'Error', [], `<p style="color:var(--error)">${err.detail?.message || err.message || JSON.stringify(err)}</p>`);
+      return;
+    }
+
+    const blob = await r.blob();
+    const h = Object.fromEntries([...r.headers.entries()]);
+    const voiceUsed = h['x-tts-voice'] || 'unknown';
+    const size = h['x-audio-size'] || blob.size;
+    const filename = `tts_${voiceUsed.replace(/[^a-zA-Z0-9-]/g, '_')}.mp3`;
+
+    const audioUrl = URL.createObjectURL(blob);
+
+    const meta = [
+      `Voice: ${voiceUsed}`,
+      `Rate: ${h['x-tts-rate'] || body.rate}`,
+      `Pitch: ${h['x-tts-pitch'] || body.pitch}`,
+      `Volume: ${h['x-tts-volume'] || body.volume}`,
+      `Size: ${fmtSize(+size)}`,
+      `Text: ${h['x-text-length']} chars`,
+    ];
+
+    showOutput('tts', 200, `Generated ${fmtSize(+size)} audio`, meta,
+      `<audio controls src="${audioUrl}"></audio>
+       <a class="download-link" onclick="downloadBlob(window._ttsBlob, '${filename}')">📥 Download MP3</a>`
+    );
+    window._ttsBlob = blob;
+
+  } catch (e) {
+    showOutput('tts', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
+  } finally {
+    hideLoading('tts-generate', 'tts-progress');
+  }
+}
+
+// ── TTS Voice List ──────────────────────────────────────
+async function listVoices() {
+  try {
+    const r = await fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ list_voices: true })
+    });
+    const d = await r.json();
+
+    let rows = [];
+    for (const [locale, voices] of Object.entries(d.voices)) {
+      for (const v of voices) {
+        rows.push({ locale, name: v.name, gender: v.gender });
+      }
+    }
+    rows.sort((a, b) => a.locale.localeCompare(b.locale));
+
+    let html = `<input type="text" class="voice-filter" placeholder="Filter voices... (${d.total} total)" 
+      oninput="filterVoices(this.value)" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin-bottom:8px">
+      <div style="max-height:400px;overflow-y:auto"><table class="voice-table" id="voice-table-inner">
+      <tr><th>Locale</th><th>Voice Name</th><th>Gender</th><th>Use</th></tr>`;
+    for (const v of rows) {
+      html += `<tr><td>${v.locale}</td><td>${v.name}</td><td>${v.gender}</td>
+        <td><a href="#" onclick="useVoice('${v.name}');return false" style="font-size:12px">Use →</a></td></tr>`;
+    }
+    html += '</table></div>';
+
+    showOutput('tts', 200, `${d.total} voices available`, [`Default: ${d.default}`], html);
+    document.getElementById('tts-output').classList.add('visible');
+  } catch (e) {
+    showOutput('tts', 500, 'Failed to fetch voices', [], `<p style="color:var(--error)">${e.message}</p>`);
+  }
+}
+
+function filterVoices(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#voice-table-inner tr').forEach((row, i) => {
+    if (i === 0) return;
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function useVoice(name) {
+  const sel = document.getElementById('tts-voice');
+  // Check if option exists
+  for (const opt of sel.options) {
+    if (opt.value === name) { sel.value = name; return; }
+  }
+  // Add it
+  const opt = document.createElement('option');
+  opt.value = name; opt.textContent = name + ' ★';
+  sel.appendChild(opt); sel.value = name;
+  // Switch to TTS tab visual feedback
+  document.querySelector('[data-tab="tts"]').click();
+}
+
+// ── QR Generate ─────────────────────────────────────────
+async function generateQR() {
+  const mode = document.getElementById('qr-mode').value;
+  const body = {};
+
+  if (mode === 'data') {
+    const data = document.getElementById('qr-data').value.trim();
+    if (!data) return alert('Enter QR data first');
+    body.data = data;
+  } else {
+    const ssid = document.getElementById('qr-ssid').value.trim();
+    if (!ssid) return alert('Enter SSID first');
+    body.ssid = ssid;
+    const pw = document.getElementById('qr-password').value;
+    if (pw) body.password = pw;
+    body.security = document.getElementById('qr-security').value;
+    body.hidden = document.getElementById('qr-hidden').checked;
+  }
+
+  body.format = document.getElementById('qr-format').value;
+  body.error_correction = document.getElementById('qr-ec').value;
+  body.scale = parseInt(document.getElementById('qr-scale').value) || 10;
+  body.border = parseInt(document.getElementById('qr-border').value) || 0;
+  body.micro = document.getElementById('qr-micro').checked || null;
+  body.boost_error = document.getElementById('qr-boost').checked;
+
+  const dark = document.getElementById('qr-dark').value.trim();
+  const light = document.getElementById('qr-light').value.trim();
+  if (dark) body.dark = dark;
+  if (light) body.light = light;
+
+  showLoading('qr-generate', 'qr-progress');
+
+  try {
+    const r = await fetch('/qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      showOutput('qr', r.status, err.message || 'Error', [], `<p style="color:var(--error)">${JSON.stringify(err.detail || err)}</p>`);
+      return;
+    }
+
+    const blob = await r.blob();
+    const h = Object.fromEntries([...r.headers.entries()]);
+    const fmt = body.format;
+    const filename = `qrcode.${fmt}`;
+
+    const meta = [];
+    if (h['x-qr-version']) meta.push(`Version: ${h['x-qr-version']}`);
+    if (h['x-qr-error-correction']) meta.push(`EC: ${h['x-qr-error-correction']}`);
+    if (h['x-qr-size']) meta.push(`Size: ${h['x-qr-size']}`);
+    if (h['x-qr-is-micro']) meta.push(`Micro: ${h['x-qr-is-micro']}`);
+    if (h['x-qr-type']) meta.push(`Type: ${h['x-qr-type']}`);
+    if (h['x-wifi-ssid']) meta.push(`SSID: ${h['x-wifi-ssid']}`);
+    meta.push(`${fmtSize(blob.size)}`);
+
+    let previewHTML = '';
+    window._qrBlob = blob;
+
+    if (fmt === 'png') {
+      const url = URL.createObjectURL(blob);
+      previewHTML = `<img src="${url}" alt="QR Code"><br>`;
+    } else if (fmt === 'svg') {
+      const text = await blob.text();
+      const svgBlob = new Blob([text], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(svgBlob);
+      previewHTML = `<img src="${url}" alt="QR Code" style="max-width:300px"><br>`;
+    } else if (fmt === 'txt') {
+      const text = await blob.text();
+      previewHTML = `<div class="txt-preview">${text.replace(/</g,'&lt;')}</div>`;
+    } else {
+      previewHTML = `<p style="color:var(--text-dim)">Preview not available for ${fmt.toUpperCase()} format</p>`;
+    }
+
+    previewHTML += `<a class="download-link" onclick="downloadBlob(window._qrBlob, '${filename}')">📥 Download ${fmt.toUpperCase()}</a>`;
+
+    showOutput('qr', 200, `Generated ${fmt.toUpperCase()} QR code`, meta, previewHTML);
+
+  } catch (e) {
+    showOutput('qr', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
+  } finally {
+    hideLoading('qr-generate', 'qr-progress');
+  }
+}
+
+// ── Download Media ──────────────────────────────────────
+async function downloadMedia() {
+  const url = document.getElementById('dl-url').value.trim();
+  if (!url) return alert('Enter a URL first');
+
+  showLoading('dl-download', 'dl-progress');
+
+  const body = { url };
+  body.quality = document.getElementById('dl-quality').value;
+
+  const audioFmt = document.getElementById('dl-audio-format').value;
+  if (audioFmt) body.audio_format = audioFmt;
+
+  const codec = document.getElementById('dl-codec').value;
+  if (codec) body.video_codec = codec;
+
+  const rateLimit = document.getElementById('dl-rate-limit').value.trim();
+  if (rateLimit) body.rate_limit = rateLimit;
+
+  body.extract_audio = document.getElementById('dl-extract-audio').checked;
+  body.subtitles = document.getElementById('dl-subtitles').checked;
+  body.embed_subtitles = document.getElementById('dl-embed-subs').checked;
+  body.embed_thumbnail = document.getElementById('dl-thumbnail').checked;
+  body.add_metadata = document.getElementById('dl-metadata').checked;
+  body.prefer_free_formats = document.getElementById('dl-free-formats').checked;
+
+  try {
+    const r = await fetch('/unidl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      showOutput('dl', r.status, err.detail?.message || err.message || 'Error', [],
+        `<p style="color:var(--error)">${JSON.stringify(err.detail || err)}</p>`);
+      return;
+    }
+
+    const blob = await r.blob();
+    const h = Object.fromEntries([...r.headers.entries()]);
+
+    // Parse filename from Content-Disposition
+    let filename = 'download';
+    const cd = h['content-disposition'] || '';
+    const fnMatch = cd.match(/filename\*=UTF-8''(.+?)(?:;|$)/);
+    if (fnMatch) {
+      filename = decodeURIComponent(fnMatch[1]);
+    } else {
+      const fnMatch2 = cd.match(/filename="?(.+?)"?(?:;|$)/);
+      if (fnMatch2) filename = fnMatch2[1];
+    }
+
+    const contentType = h['content-type'] || '';
+    const isVideo = contentType.startsWith('video/');
+    const isAudio = contentType.startsWith('audio/');
+
+    const meta = [
+      `File: ${filename}`,
+      `Size: ${fmtSize(blob.size)}`,
+      `Type: ${contentType}`,
+    ];
+
+    let previewHTML = '';
+    window._dlBlob = blob;
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (isVideo) {
+      previewHTML = `<video controls src="${blobUrl}" style="max-width:100%;max-height:400px;border-radius:8px"></video><br>`;
+    } else if (isAudio) {
+      previewHTML = `<audio controls src="${blobUrl}" style="width:100%;max-width:500px"></audio><br>`;
+    }
+
+    previewHTML += `<a class="download-link" onclick="downloadBlob(window._dlBlob, '${filename.replace(/'/g, "\\'")}')">📥 Save ${filename}</a>`;
+
+    showOutput('dl', 200, `Downloaded ${fmtSize(blob.size)}`, meta, previewHTML);
+
+  } catch (e) {
+    showOutput('dl', 500, 'Request failed', [], `<p style="color:var(--error)">${e.message}</p>`);
+  } finally {
+    hideLoading('dl-download', 'dl-progress');
+  }
+}
+</script>
+</body>
+</html>
