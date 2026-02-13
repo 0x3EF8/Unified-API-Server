@@ -309,6 +309,7 @@ async function fetchEndpoints() {
             method: m,
             path: ep.path,
             service: svc,
+            body_schema: ep.body_schema || null,
           });
         });
       });
@@ -355,7 +356,19 @@ function renderCustomList() {
 function loadEndpoint(ep, el) {
   document.getElementById('methodSelect').value = ep.method;
   document.getElementById('urlInput').value = ep.path;
-  document.getElementById('bodyEditor').value = ['POST','PUT','PATCH'].includes(ep.method) ? '{\n  \n}' : '';
+
+  // Auto-fill body from schema
+  if (['POST','PUT','PATCH'].includes(ep.method) && ep.body_schema) {
+    // Build a clean sample with only the key required fields filled in
+    const sample = {};
+    for (const [key, val] of Object.entries(ep.body_schema)) {
+      sample[key] = val;
+    }
+    document.getElementById('bodyEditor').value = JSON.stringify(sample, null, 2);
+  } else {
+    document.getElementById('bodyEditor').value = '';
+  }
+
   document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
   el.classList.add('active');
 }

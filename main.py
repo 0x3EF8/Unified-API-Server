@@ -68,6 +68,40 @@ for router in load_service_routers():
     app.include_router(router)
 
 
+def _extract_body_fields(route) -> dict:
+    """Extract request body fields with defaults from a FastAPI route."""
+    try:
+        dependant = getattr(route, "dependant", None)
+        if not dependant or not dependant.body_params:
+            return None
+        # Get the first body param (the Pydantic model)
+        param = dependant.body_params[0]
+        model_class = param.field_info.annotation
+        if not hasattr(model_class, "model_fields"):
+            return None
+        fields = {}
+        for field_name, field_info in model_class.model_fields.items():
+            default = field_info.default
+            if default is ...:
+                # Required field, no default
+                fields[field_name] = None
+            elif default is None:
+                fields[field_name] = None
+            elif isinstance(default, bool):
+                fields[field_name] = default
+            elif isinstance(default, (int, float)):
+                fields[field_name] = default
+            elif isinstance(default, str):
+                fields[field_name] = default
+            elif hasattr(default, "value"):
+                fields[field_name] = default.value
+            else:
+                fields[field_name] = str(default)
+        return fields
+    except Exception:
+        return None
+
+
 @app.get("/")
 async def root():
     """API info and loaded services."""
@@ -80,11 +114,15 @@ async def root():
         for route in router.routes:
             methods = sorted(route.methods - {"HEAD", "OPTIONS"}) if hasattr(route, "methods") else []
             if methods:
-                endpoints.append({
+                body_fields = _extract_body_fields(route)
+                ep = {
                     "path": route.path,
                     "methods": methods,
                     "summary": route.summary or route.name or "",
-                })
+                }
+                if body_fields is not None:
+                    ep["body_schema"] = body_fields
+                endpoints.append(ep)
         services[name] = {
             "prefix": prefix,
             "routes": len(endpoints),
