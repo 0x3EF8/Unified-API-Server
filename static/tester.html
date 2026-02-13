@@ -166,8 +166,11 @@ a{color:var(--accent2);text-decoration:none}
 .docs-content .code-tab{padding:4px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;font-weight:600;user-select:none}
 .docs-content .code-tab:hover{color:var(--text)}
 .docs-content .code-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
-.docs-content .code-panel{display:none}
+.docs-content .code-panel{display:none;position:relative}
 .docs-content .code-panel.active{display:block}
+.docs-content .code-panel .copy-btn{position:absolute;top:12px;right:12px;padding:4px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:var(--surface2);color:var(--dim);border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:all .15s;z-index:1;font-family:var(--mono)}
+.docs-content .code-panel .copy-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.docs-content .code-panel .copy-btn.copied{background:var(--green);color:#fff;border-color:var(--green)}
 
 /* ── Empty state ── */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);gap:8px;padding:40px}
@@ -459,8 +462,14 @@ function renderDocs(ep) {
     html += `</table>`;
   }
 
-  // Code examples with tabs
-  const body = ep.body_schema ? JSON.stringify(ep.body_schema, null, 2) : null;
+  // Code examples with tabs — use first use_case body (real working example) or fall back to schema defaults
+  const exampleBody = (ep.use_cases && ep.use_cases.length > 0 && ep.use_cases[0].body)
+    ? ep.use_cases[0].body : ep.body_schema;
+  const body = exampleBody ? JSON.stringify(exampleBody, null, 2) : null;
+  // Python version: null→None, true→True, false→False
+  const pyBody = body ? body.replace(/\bnull\b/g, 'None').replace(/\btrue\b/g, 'True').replace(/\bfalse\b/g, 'False') : null;
+  const copyBtn = `<button class="copy-btn" onclick="copyCode(this)">Copy</button>`;
+
   html += `<h3>Code Examples</h3>`;
   html += `<div class="code-tabs">`;
   html += `<div class="code-tab ${_docCodeTab==='curl'?'active':''}" onclick="switchCodeTab('curl')">cURL</div>`;
@@ -470,14 +479,14 @@ function renderDocs(ep) {
 
   if (m === 'POST' && body) {
     const escaped = body.replace(/'/g, "'\\''");
-    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl"><pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\
+    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl">${copyBtn}<pre class="code-block">curl -X POST '${baseUrl}${ep.path}' \\
   -H 'Content-Type: application/json' \\
   -d '${escaped}'</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python"><pre class="code-block">import requests
+    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python">${copyBtn}<pre class="code-block">import requests
 
 response = requests.post(
     "${baseUrl}${ep.path}",
-    json=${body}
+    json=${pyBody}
 )
 
 # For JSON responses:
@@ -486,7 +495,7 @@ print(response.json())
 # For file responses (audio/video/image):
 with open("output", "wb") as f:
     f.write(response.content)</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript"><pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {
+    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript">${copyBtn}<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(${body})
@@ -499,12 +508,12 @@ const data = await response.json();
 const blob = await response.blob();
 const url = URL.createObjectURL(blob);</pre></div>`;
   } else {
-    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl"><pre class="code-block">curl '${baseUrl}${ep.path}'</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python"><pre class="code-block">import requests
+    html += `<div class="code-panel ${_docCodeTab==='curl'?'active':''}" data-code="curl">${copyBtn}<pre class="code-block">curl '${baseUrl}${ep.path}'</pre></div>`;
+    html += `<div class="code-panel ${_docCodeTab==='python'?'active':''}" data-code="python">${copyBtn}<pre class="code-block">import requests
 
 response = requests.get("${baseUrl}${ep.path}")
 print(response.json())</pre></div>`;
-    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript"><pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");
+    html += `<div class="code-panel ${_docCodeTab==='javascript'?'active':''}" data-code="javascript">${copyBtn}<pre class="code-block">const response = await fetch("${baseUrl}${ep.path}");
 const data = await response.json();
 console.log(data);</pre></div>`;
   }
@@ -516,6 +525,15 @@ function switchCodeTab(tab) {
   _docCodeTab = tab;
   document.querySelectorAll('.docs-content .code-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase() === tab));
   document.querySelectorAll('.docs-content .code-panel').forEach(p => p.classList.toggle('active', p.dataset.code === tab));
+}
+
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('pre').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
 }
 
 function tryUseCase(idx) {
