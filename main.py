@@ -4,7 +4,9 @@ Drop service folders into services/ and they're auto-loaded.
 """
 
 import asyncio
+import json
 import logging
+from collections import deque
 from pathlib import Path
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -12,7 +14,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from config import Config
 from utils import check_internet
@@ -26,6 +28,34 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 startup_time = None
+
+# ── Live Log Streaming ──
+_log_clients: list[asyncio.Queue] = []
+_log_buffer: deque = deque(maxlen=200)
+
+
+class SSELogHandler(logging.Handler):
+    """Broadcasts log records to SSE clients for live streaming."""
+
+    def emit(self, record):
+        try:
+            entry = {
+                "ts": datetime.fromtimestamp(record.created).strftime("%H:%M:%S.%f")[:-3],
+                "level": record.levelname,
+                "name": record.name[:20],
+                "msg": record.getMessage(),
+            }
+            _log_buffer.append(entry)
+            for q in list(_log_clients):
+                try:
+                    q.put_nowait(entry)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+
+logging.getLogger().addHandler(SSELogHandler())
 
 
 @asynccontextmanager
@@ -191,6 +221,8 @@ async def api_info():
         prefix = info["prefix"]
         endpoints = []
         for route in router.routes:
+            if not getattr(route, "include_in_schema", True):
+                continue
             methods = sorted(route.methods - {"HEAD", "OPTIONS"}) if hasattr(route, "methods") else []
             if methods:
                 body_fields = _extract_body_fields(route)
@@ -256,10 +288,41 @@ async def api_tester():
     return FileResponse(STATIC_DIR / "tester.html", media_type="text/html")
 
 
+@app.get("/logs/stream")
+async def log_stream():
+    """SSE endpoint for live server log streaming."""
+    client_queue: asyncio.Queue = asyncio.Queue(maxsize=500)
+    _log_clients.append(client_queue)
+
+    async def generate():
+        try:
+            for entry in list(_log_buffer):
+                yield f"data: {json.dumps(entry)}\n\n"
+            while True:
+                try:
+                    entry = await asyncio.wait_for(client_queue.get(), timeout=30)
+                    yield f"data: {json.dumps(entry)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if client_queue in _log_clients:
+                _log_clients.remove(client_queue)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host=Config.HOST,
         port=Config.PORT,
         reload=Config.DEBUG,
+        reload_excludes=["cache/*", "downloads/*", "*.mp4", "*.webm", "*.mp3", "*.m4a", "*.opus", "*.wav", "*.part", "*.ytdl"] if Config.DEBUG else None,
+        timeout_keep_alive=300,
     )

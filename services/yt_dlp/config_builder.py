@@ -86,10 +86,6 @@ def build_ydl_opts(
         else:
             opts["subtitleslangs"] = ["en"]
 
-        if request.embed_subtitles and ffmpeg_available():
-            opts["postprocessors"] = opts.get("postprocessors", [])
-            opts["postprocessors"].append({"key": "FFmpegEmbedSubtitle"})
-
     # Metadata & Thumbnails
     if request.embed_thumbnail and ffmpeg_available():
         opts["writethumbnail"] = True

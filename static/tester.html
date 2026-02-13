@@ -55,7 +55,7 @@ a{color:var(--accent2);text-decoration:none}
 .send-btn{padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:all .15s}
 .send-btn:hover{background:var(--accent2);transform:translateY(-1px)}
 .send-btn:active{transform:translateY(0)}
-.send-btn.loading{opacity:.7;cursor:not-allowed}
+.send-btn.loading{opacity:.7;cursor:not-allowed;pointer-events:none}
 
 /* ── Tabs ── */
 .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 12px}
@@ -123,6 +123,20 @@ a{color:var(--accent2);text-decoration:none}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* ── Log Console ── */
+.log-line{font-family:var(--mono);font-size:12px;line-height:1.7;padding:1px 16px;white-space:pre-wrap;word-break:break-all;border-bottom:1px solid #ffffff05}
+.log-line:hover{background:var(--surface2)}
+.log-ts{color:var(--dim)}
+.log-level{font-weight:700;display:inline-block;min-width:56px}
+.log-level.DEBUG{color:var(--dim)}.log-level.INFO{color:var(--green)}.log-level.WARNING{color:var(--yellow)}.log-level.ERROR{color:var(--red)}.log-level.CRITICAL{color:var(--red)}
+.log-name{color:#666;display:inline-block;min-width:110px;overflow:hidden;text-overflow:ellipsis}
+.log-toolbar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.log-toolbar .log-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--yellow)}
+.log-toolbar .log-dot.connected{background:var(--green)}
+.log-toolbar .log-dot.disconnected{background:var(--red)}
+.log-toolbar button{background:none;border:1px solid var(--border);color:var(--dim);padding:2px 10px;border-radius:4px;cursor:pointer;font-size:11px;transition:all .15s}
+.log-toolbar button:hover{border-color:var(--accent);color:var(--text)}
 
 /* ── Docs panel ── */
 .docs-content{padding:20px;font-size:13px;line-height:1.7;overflow-y:auto}
@@ -283,6 +297,7 @@ a{color:var(--accent2);text-decoration:none}
         <div class="tabs" id="resTabs">
           <div class="tab active" data-tab="res-body" onclick="switchResTab(this)">Response</div>
           <div class="tab" data-tab="res-headers" onclick="switchResTab(this)">Headers<span class="tab-badge" id="resHeaderCount">0</span></div>
+          <div class="tab" data-tab="res-logs" onclick="switchResTab(this)">Logs<span class="tab-badge" id="logCount">0</span></div>
         </div>
 
         <div id="resStatusBar" style="display:none"></div>
@@ -298,6 +313,19 @@ a{color:var(--accent2);text-decoration:none}
 
         <div class="panel-body" id="tab-res-headers" style="display:none">
           <table class="res-headers-table" id="resHeadersTable"></table>
+        </div>
+
+        <div class="panel-body" id="tab-res-logs" style="display:none">
+          <div style="display:flex;flex-direction:column;height:100%">
+            <div class="log-toolbar">
+              <span class="log-dot" id="logDot"></span>
+              <span style="font-size:11px;color:var(--dim)" id="logStatusText">Connecting...</span>
+              <div style="flex:1"></div>
+              <button onclick="clearLogs()">Clear</button>
+              <button onclick="scrollLogBottom()">↓ Bottom</button>
+            </div>
+            <div id="logContent" style="flex:1;overflow-y:auto;padding:4px 0"></div>
+          </div>
         </div>
 
         <div id="downloadBar" class="download-bar" style="display:none">
@@ -342,6 +370,7 @@ function init() {
   fetchEndpoints();
   renderCustomList();
   setupKeyboard();
+  connectLogStream();
 }
 
 async function fetchEndpoints() {
@@ -554,7 +583,7 @@ function switchReqTab(el) {
 function switchResTab(el) {
   document.querySelectorAll('#resTabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['res-body','res-headers'].forEach(id => {
+  ['res-body','res-headers','res-logs'].forEach(id => {
     document.getElementById('tab-'+id).style.display = el.dataset.tab === id ? '' : 'none';
   });
 }
@@ -601,11 +630,12 @@ function getParams() {
 }
 
 // ─── Send Request ───
+let activeAbortController = null;
+
 async function sendRequest() {
   const btn = document.getElementById('sendBtn');
   if (btn.classList.contains('loading')) return;
   btn.classList.add('loading');
-  btn.textContent = 'Sending...';
 
   const method = document.getElementById('methodSelect').value;
   let url = document.getElementById('urlInput').value.trim();
@@ -617,16 +647,39 @@ async function sendRequest() {
   if (!url.startsWith('http')) url = BASE + (url.startsWith('/') ? '' : '/') + url;
   if (params) url += (url.includes('?') ? '&' : '?') + params;
 
-  const opts = { method, headers };
+  // Detect download-heavy endpoints for longer timeout
+  const isDownloadEndpoint = url.includes('/unidl');
+  const TIMEOUT_MS = isDownloadEndpoint ? 600000 : 120000; // 10min for downloads, 2min otherwise
+
+  // AbortController for timeout
+  if (activeAbortController) activeAbortController.abort();
+  activeAbortController = new AbortController();
+  const timeoutId = setTimeout(() => activeAbortController.abort(), TIMEOUT_MS);
+
+  const opts = { method, headers, signal: activeAbortController.signal };
   if (['POST','PUT','PATCH'].includes(method) && bodyText) {
     opts.body = bodyText;
   }
 
+  // Show elapsed timer while waiting
   const startTime = performance.now();
   responseBlob = null;
 
+  let timerInterval = null;
+  if (isDownloadEndpoint) {
+    btn.textContent = 'Downloading... 0s';
+    timerInterval = setInterval(() => {
+      const secs = Math.round((performance.now() - startTime) / 1000);
+      btn.textContent = `Downloading... ${secs}s`;
+    }, 1000);
+  } else {
+    btn.textContent = 'Sending...';
+  }
+
   try {
     const response = await fetch(url, opts);
+    clearTimeout(timeoutId);
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     const elapsed = Math.round(performance.now() - startTime);
     const contentType = response.headers.get('content-type') || '';
 
@@ -668,8 +721,85 @@ async function sendRequest() {
       // JSON
       const text = await blob.text();
       try {
-        const formatted = JSON.stringify(JSON.parse(text), null, 2);
-        resContent.innerHTML = `<pre class="res-body">${syntaxHighlight(formatted)}</pre>`;
+        const parsed = JSON.parse(text);
+
+        // Check if this is a playlist or media+subtitles response
+        if (parsed.files && Array.isArray(parsed.files)) {
+          const pl = parsed;
+          const isPlaylist = parsed.playlist;
+          const hasSubs = parsed.has_subtitles;
+          const headerIcon = isPlaylist ? '📂' : '🎬';
+          const headerLabel = isPlaylist
+            ? `Playlist — ${pl.total_files} files (${pl.total_size})`
+            : hasSubs
+              ? `Video + Subtitles — ${pl.total_files} files (${pl.total_size})`
+              : `${pl.total_files} files (${pl.total_size})`;
+
+          let html = `<div class="res-body" style="padding:16px">`;
+          html += `<p style="margin-bottom:16px;color:var(--green);font-weight:600">${headerIcon} ${headerLabel}</p>`;
+          html += `<div style="display:flex;flex-direction:column;gap:12px">`;
+
+          for (let i = 0; i < pl.files.length; i++) {
+            const f = pl.files[i];
+            const fileUrl = BASE + f.download_url;
+            const isSub = f.type === 'subtitle';
+            const icon = isSub ? '📝' : f.type === 'audio' ? '🔊' : '🎬';
+
+            html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden">`;
+            html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px">`;
+            html += `<span style="font-size:16px">${icon}</span>`;
+            html += `<div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(f.filename)}">${escHtml(f.filename)}</div><div style="font-size:11px;color:var(--dim)">${f.size_formatted} · ${f.media_type}</div></div>`;
+            html += `<a href="${fileUrl}" download style="background:var(--accent);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;text-decoration:none;white-space:nowrap;position:relative;z-index:2;display:inline-block">⬇</a>`;
+            html += `</div>`;
+
+            // Inline player for media files
+            if (f.type === 'audio') {
+              html += `<div style="padding:4px 12px 10px"><audio controls src="${fileUrl}" style="width:100%;height:36px" preload="none"></audio></div>`;
+            } else if (f.type === 'video') {
+              // Collect subtitle tracks for this video
+              const subTracks = pl.files.filter(s => s.type === 'subtitle');
+              html += `<div style="padding:4px 12px 10px"><video controls src="${fileUrl}" style="width:100%;max-height:300px;border-radius:4px;background:#000" preload="none" crossorigin="anonymous">`;
+              for (const sub of subTracks) {
+                const subUrl = BASE + sub.download_url;
+                const lang = sub.filename.match(/\.([a-z]{2,3})\.\w+$/i);
+                const langCode = lang ? lang[1] : 'en';
+                html += `<track kind="subtitles" src="${subUrl}" srclang="${langCode}" label="${langCode.toUpperCase()}"${subTracks.indexOf(sub) === 0 ? ' default' : ''}>`;
+              }
+              html += `</video></div>`;
+            } else if (isSub) {
+              // Show subtitle preview (loaded on toggle)
+              html += `<details style="padding:4px 12px 10px" data-sub-url="${fileUrl}" data-sub-idx="${i}"><summary style="cursor:pointer;color:var(--dim);font-size:11px">Preview subtitle content</summary><pre id="sub-preview-${i}" style="margin-top:6px;font-size:11px;max-height:200px;overflow:auto;color:var(--dim);white-space:pre-wrap">Click to load...</pre></details>`;
+            }
+
+            html += `</div>`;
+          }
+          html += `</div>`;
+          html += `<button onclick="playlistDownloadAll(this)" style="margin-top:12px;background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:13px;width:100%;position:relative;z-index:2">⬇ Download All Files</button>`;
+          html += `</div>`;
+          resContent.innerHTML = html;
+
+          // Lazy-load subtitle previews on toggle
+          resContent.querySelectorAll('details[data-sub-url]').forEach(det => {
+            det.addEventListener('toggle', function() {
+              if (!this.open) return;
+              const pre = this.querySelector('pre');
+              if (pre && pre.textContent === 'Click to load...') {
+                pre.textContent = 'Loading...';
+                fetch(this.dataset.subUrl).then(r => r.text()).then(t => {
+                  pre.textContent = t.slice(0, 3000) + (t.length > 3000 ? '\n...truncated' : '');
+                }).catch(() => { pre.textContent = 'Failed to load subtitle preview'; });
+              }
+            });
+          });
+
+          // Store file URLs for download-all
+          resContent.dataset.playlistFiles = JSON.stringify(pl.files.map(f => ({url: BASE + f.download_url, name: f.filename})));
+          downloadBar.style.display = 'none';
+        } else {
+          const formatted = JSON.stringify(parsed, null, 2);
+          resContent.innerHTML = `<pre class="res-body">${syntaxHighlight(formatted)}</pre>`;
+          downloadBar.style.display = 'none';
+        }
       } catch {
         resContent.innerHTML = `<pre class="res-body">${escHtml(text)}</pre>`;
       }
@@ -719,19 +849,67 @@ async function sendRequest() {
     addHistory(method, url.replace(BASE, ''), response.status, elapsed);
 
   } catch (err) {
+    clearTimeout(timeoutId);
+
+    let errorTitle = 'Error';
+    let errorDetail = err.message;
+
+    if (err.name === 'AbortError') {
+      const isDownload = url.includes('/unidl');
+      errorTitle = 'Timeout';
+      errorDetail = isDownload
+        ? 'Download timed out after 10 minutes. The file may be too large or the source too slow. Try using curl or the code examples in the Docs tab instead.'
+        : 'Request timed out after 2 minutes.';
+    } else if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+      errorTitle = 'Network Error';
+      errorDetail = url.includes('/unidl')
+        ? 'Connection lost during download. This can happen with large files or slow sources. Try again, or use curl/code examples from the Docs tab for more reliable downloads.'
+        : 'Failed to connect to the server. Check that the server is running.';
+    }
+
     document.getElementById('resStatusBar').style.display = '';
-    document.getElementById('resStatusBar').innerHTML = `<span class="code s5">Error</span><span class="time">${err.message}</span>`;
+    document.getElementById('resStatusBar').innerHTML = `<span class="code s5">${errorTitle}</span><span class="time">${errorDetail}</span>`;
     document.getElementById('resEmpty').style.display = 'none';
     document.getElementById('resContent').style.display = '';
     document.getElementById('resContent').innerHTML = `<pre class="res-body" style="color:var(--red)">${escHtml(err.stack || err.message)}</pre>`;
     document.getElementById('downloadBar').style.display = 'none';
+  } finally {
+    if (timerInterval) clearInterval(timerInterval);
+    btn.classList.remove('loading');
+    btn.textContent = 'Send';
+    activeAbortController = null;
   }
-
-  btn.classList.remove('loading');
-  btn.textContent = 'Send';
 }
 
 // ─── Download ───
+function playlistDownloadAll(btn) {
+  const resContent = document.getElementById('resContent');
+  const files = JSON.parse(resContent.dataset.playlistFiles || '[]');
+  if (!files.length) return;
+  btn.disabled = true;
+  btn.textContent = `Downloading 0/${files.length}...`;
+  let done = 0;
+  const total = files.length;
+  files.forEach((f, i) => {
+    setTimeout(() => {
+      try {
+        const a = document.createElement('a');
+        a.href = f.url;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch(e) { console.warn('Download failed:', f.name, e); }
+      done++;
+      btn.textContent = `Downloading ${done}/${total}...`;
+      if (done >= total) {
+        btn.textContent = '✓ All downloads started';
+        setTimeout(() => { btn.disabled = false; btn.textContent = '⬇ Download All Files'; }, 3000);
+      }
+    }, i * 500);
+  });
+}
+
 function downloadResponse() {
   if (!responseBlob) return;
   const url = URL.createObjectURL(responseBlob);
@@ -834,6 +1012,67 @@ function syntaxHighlight(json) {
     }
     return `<span style="${cls}">${escHtml(match)}</span>`;
   });
+}
+
+// ─── Log Streaming ───
+let logEventSource = null;
+let logCount = 0;
+
+function connectLogStream() {
+  if (logEventSource) logEventSource.close();
+  const dot = document.getElementById('logDot');
+  const statusText = document.getElementById('logStatusText');
+  dot.className = 'log-dot';
+  statusText.textContent = 'Connecting...';
+
+  logEventSource = new EventSource(BASE + '/logs/stream');
+
+  logEventSource.onopen = () => {
+    dot.className = 'log-dot connected';
+    statusText.textContent = 'Live';
+  };
+
+  logEventSource.onmessage = (e) => {
+    try {
+      const entry = JSON.parse(e.data);
+      logCount++;
+      document.getElementById('logCount').textContent = logCount;
+      appendLogEntry(entry);
+    } catch {}
+  };
+
+  logEventSource.onerror = () => {
+    dot.className = 'log-dot disconnected';
+    statusText.textContent = 'Disconnected';
+    logEventSource.close();
+    setTimeout(connectLogStream, 3000);
+  };
+}
+
+function appendLogEntry(entry) {
+  const container = document.getElementById('logContent');
+  if (!container) return;
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const lvl = entry.level || 'INFO';
+  line.innerHTML = `<span class="log-ts">${escHtml(entry.ts)}</span> <span class="log-level ${lvl}">${escHtml(lvl)}</span> <span class="log-name">${escHtml(entry.name)}</span> ${escHtml(entry.msg)}`;
+  container.appendChild(line);
+  // Auto-scroll if near bottom
+  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  if (atBottom) container.scrollTop = container.scrollHeight;
+  // Limit DOM nodes
+  while (container.children.length > 1000) container.removeChild(container.firstChild);
+}
+
+function clearLogs() {
+  document.getElementById('logContent').innerHTML = '';
+  logCount = 0;
+  document.getElementById('logCount').textContent = '0';
+}
+
+function scrollLogBottom() {
+  const c = document.getElementById('logContent');
+  c.scrollTop = c.scrollHeight;
 }
 
 // ─── Boot ───

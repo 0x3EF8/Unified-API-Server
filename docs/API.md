@@ -552,9 +552,8 @@ Downloads video or audio from **YouTube, Twitter/X, Reddit, Instagram, TikTok, S
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `subtitles` | boolean | `false` | Download subtitles |
+| `subtitles` | boolean | `false` | Download subtitles (returned as separate files) |
 | `subtitle_langs` | array | `null` | Language codes, e.g. `["en", "es"]` |
-| `embed_subtitles` | boolean | `false` | Embed subtitles into video file |
 
 **Post-processing:**
 
@@ -712,7 +711,6 @@ curl -X POST http://localhost:8000/unidl \
     "quality": "1080p",
     "subtitles": true,
     "subtitle_langs": ["en"],
-    "embed_subtitles": true,
     "embed_thumbnail": true,
     "add_metadata": true
   }' \
@@ -742,7 +740,6 @@ curl -X POST http://localhost:8000/unidl \
     "video_codec": "h264",
     "subtitles": true,
     "subtitle_langs": ["en", "es"],
-    "embed_subtitles": true,
     "embed_thumbnail": true,
     "add_metadata": true,
     "prefer_free_formats": false,

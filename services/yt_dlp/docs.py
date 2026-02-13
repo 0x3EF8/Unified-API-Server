@@ -9,6 +9,9 @@ NOTES = [
     "Use <code>extract_audio: true</code> to get audio-only output",
     "Quality options: <code>best</code>, <code>1080p</code>, <code>720p</code>, <code>480p</code>, <code>audio</code>",
     "The response includes a <code>Content-Disposition</code> header with the original filename",
+    "<strong>Playlist support:</strong> pass a playlist URL and all videos download with your chosen quality — response returns a JSON file list with individual play/download links",
+    "Playlist quality: use <code>quality</code>, <code>extract_audio</code>, <code>video_codec</code>, etc. — settings apply to <strong>every video</strong> in the playlist",
+    "Use <code>playlist_start</code> / <code>playlist_end</code> to limit which videos to download from a playlist",
 ]
 
 EXAMPLES = [
@@ -29,13 +32,28 @@ EXAMPLES = [
     },
     {
         "title": "YouTube with Subtitles",
-        "description": "Download with embedded English subtitles",
-        "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "subtitles": True, "subtitle_langs": ["en"], "embed_subtitles": True},
+        "description": "Download video with English subtitles",
+        "body": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "subtitles": True, "subtitle_langs": ["en"]},
     },
     {
         "title": "YouTube Playlist (First 5)",
-        "description": "Download the first 5 videos from a playlist",
-        "body": {"url": "https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf", "playlist_start": 1, "playlist_end": 5},
+        "description": "Download the first 5 videos from a playlist at 720p",
+        "body": {"url": "https://www.youtube.com/watch?v=6jJD_bXymR0&list=RD6jJD_bXymR0&index=1", "quality": "720p", "playlist_start": 1, "playlist_end": 5},
+    },
+    {
+        "title": "Playlist — Audio Only (MP3)",
+        "description": "Download an entire playlist as MP3 audio files",
+        "body": {"url": "https://www.youtube.com/playlist?list=PLxxxxxx", "extract_audio": True, "audio_format": "mp3"},
+    },
+    {
+        "title": "Playlist — Best Quality",
+        "description": "Download all playlist videos at the highest available quality",
+        "body": {"url": "https://www.youtube.com/playlist?list=PLxxxxxx", "quality": "best"},
+    },
+    {
+        "title": "Playlist — 1080p with Subtitles",
+        "description": "Download playlist at 1080p with English subtitles",
+        "body": {"url": "https://www.youtube.com/playlist?list=PLxxxxxx", "quality": "1080p", "subtitles": True, "subtitle_langs": ["en"]},
     },
     {
         "title": "Facebook Video",

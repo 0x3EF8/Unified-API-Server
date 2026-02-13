@@ -49,7 +49,6 @@ class DownloadRequest(BaseModel):
     # Subtitle settings
     subtitles: bool = False
     subtitle_langs: Optional[List[str]] = None
-    embed_subtitles: bool = False
 
     # Post-processing
     embed_thumbnail: bool = False
