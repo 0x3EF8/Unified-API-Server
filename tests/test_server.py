@@ -59,7 +59,6 @@ def test_health_endpoint_system_info(test_client: TestClient, mock_internet_chec
 @pytest.mark.unit
 def test_health_endpoint_degraded_no_internet(test_client: TestClient):
     """Test health endpoint shows degraded when no internet."""
-    from unittest.mock import patch
     with patch('main.check_internet', return_value=False):
         response = test_client.get("/health")
 

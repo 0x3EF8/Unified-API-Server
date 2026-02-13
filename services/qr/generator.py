@@ -65,8 +65,6 @@ def generate_qr_code(request: QRRequest) -> Tuple[bytes, dict]:
             qr.save(str_buffer, kind='txt', **txt_kwargs)
             buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
             content_type = 'text/plain'
-        else:
-            raise ValueError(f"Unsupported format: {request.format}")
 
         metadata = {
             'version': qr.designator,
@@ -159,9 +157,6 @@ def generate_wifi_qr(
             wifi.save(str_buffer, kind='txt', **txt_kwargs)
             buffer = io.BytesIO(str_buffer.getvalue().encode('utf-8'))
             content_type = 'text/plain'
-        else:
-            wifi.save(buffer, kind='png', **save_kwargs)
-            content_type = 'image/png'
 
         metadata = {
             'version': wifi.designator,

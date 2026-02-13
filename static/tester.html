@@ -141,7 +141,7 @@ a{color:var(--accent2);text-decoration:none}
 .docs-content .fields-table .fdefault{color:var(--yellow);font-family:var(--mono);font-size:11px}
 .docs-content .fields-table .freq{color:var(--red);font-size:10px;font-weight:700}
 .docs-content pre.code-block{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0 16px;font-family:var(--mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--text);white-space:pre;word-break:normal}
-.docs-content .code-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-top:8px;font-weight:600}
+
 .docs-content .no-docs{color:var(--dim);text-align:center;padding:40px}
 
 /* ── Notes list ── */
@@ -178,7 +178,7 @@ a{color:var(--accent2);text-decoration:none}
 .empty-state p{font-size:13px}
 
 /* ── Modal ── */
-.modal-overlay{position:fixed;inset:0;background:#000a;z-index:100;display:flex;align-items:center;justify-content:center;display:none}
+.modal-overlay{position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;display:none}
 .modal-overlay.show{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:500px;max-height:80vh;overflow:auto;padding:24px}
 .modal h2{font-size:16px;margin-bottom:16px}
@@ -838,7 +838,7 @@ function syntaxHighlight(json) {
 
 // ─── Boot ───
 init();
-setInterval(checkHealth, 30000);
+setInterval(() => { fetchEndpoints(); }, 30000);
 </script>
 </body>
 </html>

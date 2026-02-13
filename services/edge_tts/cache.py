@@ -13,8 +13,7 @@ class TTSCache:
     """Manages TTS audio caching."""
 
     def __init__(self):
-        self.hits = 0
-        self.misses = 0
+        pass
 
     def _get_cache_key(self, text: str, voice: str, rate: str, pitch: str, volume: str) -> str:
         """Generate unique cache key using MD5 hash."""
@@ -30,11 +29,9 @@ class TTSCache:
         cache_path = config.CACHE_DIR / f"{cache_key}.mp3"
 
         if cache_path.exists():
-            self.hits += 1
             logger.debug(f"Cache HIT: {cache_key[:8]}...")
             return cache_path.read_bytes()
 
-        self.misses += 1
         return None
 
     def set(self, text: str, voice: str, rate: str, pitch: str, volume: str, audio: bytes) -> None:
