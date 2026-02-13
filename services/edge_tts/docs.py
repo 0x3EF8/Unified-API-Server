@@ -63,7 +63,7 @@ response = requests.post(
 # Save the audio file
 with open("output.mp3", "wb") as f:
     f.write(response.content)
-print(f"Saved output.mp3 ({{len(response.content)}} bytes)")''',
+print(f"Saved output.mp3 ({len(response.content)} bytes)")''',
 
     "javascript": '''const response = await fetch("{base_url}/tts", {
   method: "POST",

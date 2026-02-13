@@ -117,7 +117,7 @@ response = requests.post(
 # Save the QR code image
 with open("qrcode.png", "wb") as f:
     f.write(response.content)
-print(f"Saved qrcode.png ({{len(response.content)}} bytes)")''',
+print(f"Saved qrcode.png ({len(response.content)} bytes)")''',
 
     "javascript": '''const response = await fetch("{base_url}/qr", {
   method: "POST",

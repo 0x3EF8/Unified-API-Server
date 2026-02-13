@@ -112,7 +112,7 @@ cd = response.headers.get("Content-Disposition", "")
 filename = cd.split("filename=")[-1].strip('"') if "filename=" in cd else "video.mp4"
 with open(filename, "wb") as f:
     f.write(response.content)
-print(f"Saved {{filename}} ({{len(response.content)}} bytes)")''',
+print(f"Saved {filename} ({len(response.content)} bytes)")''',
 
     "javascript": '''const response = await fetch("{base_url}/unidl", {
   method: "POST",
