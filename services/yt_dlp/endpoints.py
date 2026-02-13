@@ -41,14 +41,13 @@ def _cleanup_download(download_id: str):
         logger.info(f"✓ Cleaned up: {download_id}")
 
 
-@router.post("", summary="Universal Media Downloader — 1000+ Sites")
+@router.post("", summary="Media Downloader")
 async def unidl(request: DownloadRequest, background_tasks: BackgroundTasks):
-    """Download video or audio from 1000+ supported sites.
+    """Download video or audio from any supported URL.
 
-    Supports YouTube, Facebook, Instagram, TikTok, Twitter/X, Reddit,
-    SoundCloud, Vimeo, Twitch, Dailymotion, Bilibili, and many more.
     Send `{"url": "..."}` with optional quality/format settings.
-    Returns the file directly as a download.
+    Returns the file directly. Supports YouTube, Twitter/X, Reddit,
+    Instagram, TikTok, SoundCloud, Vimeo, and 1000+ other sites.
     """
 
     if not request.url:

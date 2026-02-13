@@ -48,6 +48,21 @@ class ServiceLoader:
         
         return service_folders
     
+    def _load_docs(self, service_name: str) -> Optional[Dict[str, Any]]:
+        """Auto-load docs.py from a service folder (NOTES + EXAMPLES)."""
+        try:
+            docs_module = importlib.import_module(f"services.{service_name}.docs")
+            notes = getattr(docs_module, 'NOTES', [])
+            examples = getattr(docs_module, 'EXAMPLES', [])
+            if notes or examples:
+                logger.debug(f"  docs: {len(examples)} examples, {len(notes)} notes")
+                return {'notes': notes, 'examples': examples}
+        except ModuleNotFoundError:
+            pass  # No docs.py — that's fine
+        except Exception as e:
+            logger.warning(f"  docs.py error in {service_name}: {e}")
+        return None
+    
     def load_service(self, service_path: Path) -> Optional[APIRouter]:
         """Load a single service and return its router."""
         service_name = service_path.name
@@ -93,7 +108,8 @@ class ServiceLoader:
                 'prefix': prefix,
                 'tags': tags,
                 'routes': route_count,
-                'path': str(service_path)
+                'path': str(service_path),
+                'docs': self._load_docs(service_name),
             }
             
             logger.info(f"✓ {service_name:<15} │ {prefix:<20} │ {route_count} routes │ {tags}")
