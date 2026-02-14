@@ -12,7 +12,8 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -56,6 +57,11 @@ class SSELogHandler(logging.Handler):
 
 
 logging.getLogger().addHandler(SSELogHandler())
+
+# Also capture uvicorn access logs in the SSE stream
+for _uv_name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    _uv_logger = logging.getLogger(_uv_name)
+    _uv_logger.addHandler(SSELogHandler())
 
 
 @asynccontextmanager
@@ -288,6 +294,12 @@ async def api_tester():
     return FileResponse(STATIC_DIR / "tester.html", media_type="text/html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Serve favicon."""
+    return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon")
+
+
 @app.get("/logs/stream")
 async def log_stream():
     """SSE endpoint for live server log streaming."""
@@ -315,6 +327,70 @@ async def log_stream():
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── External API Proxy ──
+# Allows the tester UI to send requests to any external URL without CORS issues.
+
+@app.api_route("/proxy", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
+async def proxy_request(request: Request):
+    """Forward a request to an external URL (bypasses CORS for the tester UI)."""
+    target_url = request.query_params.get("url")
+    if not target_url:
+        return {"error": "Missing 'url' query parameter"}
+
+    # Only allow http/https
+    if not target_url.startswith(("http://", "https://")):
+        return {"error": "URL must start with http:// or https://"}
+
+    # Gather forwarded headers (skip hop-by-hop and internal headers)
+    skip_headers = {"host", "origin", "referer", "connection", "accept-encoding",
+                    "content-length", "transfer-encoding"}
+    fwd_headers = {}
+    for k, v in request.headers.items():
+        if k.lower() not in skip_headers:
+            fwd_headers[k] = v
+
+    body = await request.body()
+    method = request.method
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
+            resp = await client.request(
+                method=method,
+                url=target_url,
+                headers=fwd_headers,
+                content=body if body else None,
+            )
+
+        # Build response, forwarding status + headers
+        exclude_headers = {"transfer-encoding", "content-encoding", "content-length"}
+        resp_headers = {
+            k: v for k, v in resp.headers.items()
+            if k.lower() not in exclude_headers
+        }
+        # Add original status so the tester can read it
+        resp_headers["x-proxy-status"] = str(resp.status_code)
+        resp_headers["x-proxy-url"] = target_url
+
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            headers=resp_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+    except httpx.TimeoutException:
+        return Response(
+            content=json.dumps({"error": "Proxy request timed out after 120s", "url": target_url}),
+            status_code=504,
+            media_type="application/json",
+        )
+    except httpx.RequestError as exc:
+        return Response(
+            content=json.dumps({"error": f"Proxy connection failed: {exc}", "url": target_url}),
+            status_code=502,
+            media_type="application/json",
+        )
 
 
 if __name__ == "__main__":

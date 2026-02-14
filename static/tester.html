@@ -125,17 +125,26 @@ a{color:var(--accent2);text-decoration:none}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
 
 /* ── Log Console ── */
-.log-line{font-family:var(--mono);font-size:12px;line-height:1.7;padding:1px 16px;white-space:pre-wrap;word-break:break-all;border-bottom:1px solid #ffffff05}
-.log-line:hover{background:var(--surface2)}
-.log-ts{color:var(--dim)}
-.log-level{font-weight:700;display:inline-block;min-width:56px}
-.log-level.DEBUG{color:var(--dim)}.log-level.INFO{color:var(--green)}.log-level.WARNING{color:var(--yellow)}.log-level.ERROR{color:var(--red)}.log-level.CRITICAL{color:var(--red)}
-.log-name{color:#666;display:inline-block;min-width:110px;overflow:hidden;text-overflow:ellipsis}
-.log-toolbar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
-.log-toolbar .log-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--yellow)}
+.log-line{font-family:var(--mono);font-size:10px;line-height:1.4;padding:1px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid #ffffff03;display:flex;align-items:baseline;gap:0}
+.log-line:hover{background:var(--surface2);white-space:pre-wrap;overflow:visible}
+.log-line.log-progress{background:#00b89408}
+.log-line.log-progress .log-msg{color:var(--green)}
+.log-line.log-finished{background:#6c5ce708}
+.log-line.log-finished .log-msg{color:var(--accent2)}
+.log-line.log-error-line{background:#e1705508}
+.log-line.log-error-line .log-msg{color:var(--red)}
+.log-ts{color:#555;flex-shrink:0;width:72px;text-align:right;padding-right:6px}
+.log-level{font-weight:600;flex-shrink:0;width:32px;text-align:center;font-size:9px;letter-spacing:.3px;border-radius:2px;padding:0 2px}
+.log-level.DEBUG{color:#555}.log-level.INFO{color:var(--green)}.log-level.WARNING{color:var(--yellow);background:#fdcb6e10}.log-level.ERROR{color:var(--red);background:#e1705510}.log-level.CRITICAL{color:#fff;background:var(--red)}
+.log-name{flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;padding:0 4px;font-size:9px}
+.log-name.src-uvicorn{color:#74b9ff}.log-name.src-download{color:var(--green)}.log-name.src-yt-dlp{color:var(--yellow)}.log-name.src-services{color:var(--accent2)}.log-name.src-main{color:#dfe6e9}.log-name.src-default{color:#555}
+.log-msg{color:var(--text);opacity:.85;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.log-line:hover .log-msg{white-space:pre-wrap;overflow:visible}
+.log-toolbar{display:flex;align-items:center;gap:6px;padding:3px 8px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.log-toolbar .log-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--yellow)}
 .log-toolbar .log-dot.connected{background:var(--green)}
 .log-toolbar .log-dot.disconnected{background:var(--red)}
-.log-toolbar button{background:none;border:1px solid var(--border);color:var(--dim);padding:2px 10px;border-radius:4px;cursor:pointer;font-size:11px;transition:all .15s}
+.log-toolbar button{background:none;border:1px solid var(--border);color:var(--dim);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:10px;transition:all .15s}
 .log-toolbar button:hover{border-color:var(--accent);color:var(--text)}
 
 /* ── Docs panel ── */
@@ -218,6 +227,13 @@ a{color:var(--accent2);text-decoration:none}
     <div class="sidebar-section">Endpoints</div>
     <ul class="sidebar-list" id="endpointList"></ul>
 
+    <div class="sidebar-section">External API</div>
+    <ul class="sidebar-list">
+      <li id="externalApiItem" onclick="loadExternalApi(this)">
+        <span class="method get" style="background:#74b9ff22;color:var(--blue)">ANY</span>Test External API
+      </li>
+    </ul>
+
     <div class="sidebar-section">Custom Requests</div>
     <ul class="sidebar-list" id="customList"></ul>
 
@@ -241,7 +257,7 @@ a{color:var(--accent2);text-decoration:none}
           <option value="PATCH">PATCH</option>
           <option value="DELETE">DELETE</option>
         </select>
-        <input class="url-input" id="urlInput" placeholder="Enter URL or path..." value="/tts">
+        <input class="url-input" id="urlInput" placeholder="Enter path or full URL (e.g. https://api.example.com/v1)" value="/tts">
       </div>
       <button class="send-btn" id="sendBtn" onclick="sendRequest()">Send</button>
     </div>
@@ -306,7 +322,7 @@ a{color:var(--accent2);text-decoration:none}
           <div class="empty-state" id="resEmpty">
             <div class="icon">↑</div>
             <p>Send a request to see the response</p>
-            <p style="font-size:11px">Pick an endpoint from the sidebar or type your own</p>
+            <p style="font-size:11px">Pick an endpoint from the sidebar, type a path, or enter any external URL</p>
           </div>
           <div id="resContent" style="display:none"></div>
         </div>
@@ -319,12 +335,12 @@ a{color:var(--accent2);text-decoration:none}
           <div style="display:flex;flex-direction:column;height:100%">
             <div class="log-toolbar">
               <span class="log-dot" id="logDot"></span>
-              <span style="font-size:11px;color:var(--dim)" id="logStatusText">Connecting...</span>
+              <span style="font-size:10px;color:var(--dim)" id="logStatusText">Connecting...</span>
               <div style="flex:1"></div>
               <button onclick="clearLogs()">Clear</button>
-              <button onclick="scrollLogBottom()">↓ Bottom</button>
+              <button onclick="scrollLogBottom()">Bottom</button>
             </div>
-            <div id="logContent" style="flex:1;overflow-y:auto;padding:4px 0"></div>
+            <div id="logContent" style="flex:1;overflow-y:auto;padding:0;background:var(--bg)"></div>
           </div>
         </div>
 
@@ -346,7 +362,7 @@ a{color:var(--accent2);text-decoration:none}
     <label>Method</label>
     <select id="newReqMethod"><option>GET</option><option selected>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
     <label>Path</label>
-    <input id="newReqPath" placeholder="/endpoint">
+    <input id="newReqPath" placeholder="/endpoint or https://api.example.com/v1">
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal()">Cancel</button>
       <button class="confirm" onclick="createCustomRequest()">Create</button>
@@ -548,6 +564,83 @@ function tryUseCase(idx) {
   if (bodyTab) switchReqTab(bodyTab);
 }
 
+function loadExternalApi(el) {
+  // Activate sidebar item
+  document.querySelectorAll('.sidebar-list li').forEach(li => li.classList.remove('active'));
+  el.classList.add('active');
+
+  // Set up for external API testing
+  document.getElementById('methodSelect').value = 'GET';
+  document.getElementById('urlInput').value = '';
+  document.getElementById('urlInput').focus();
+  document.getElementById('bodyEditor').value = '';
+
+  // Clear response
+  document.getElementById('resStatusBar').style.display = 'none';
+  document.getElementById('resEmpty').style.display = '';
+  document.getElementById('resContent').style.display = 'none';
+  document.getElementById('downloadBar').style.display = 'none';
+
+  // Show external API docs
+  const c = document.getElementById('docsContent');
+  c.innerHTML = `<h2>External API Tester</h2>
+<p>Test any public API directly from this interface. Requests are proxied through the server to bypass CORS restrictions.</p>
+<h3>How to Use</h3>
+<ul class="doc-notes">
+  <li>Paste any full URL into the URL bar (e.g. <code>https://api.example.com/v1/data</code>)</li>
+  <li>Select the HTTP method (GET, POST, PUT, PATCH, DELETE)</li>
+  <li>Add headers in the <strong>Headers</strong> tab if needed</li>
+  <li>Add query parameters in the <strong>Params</strong> tab or directly in the URL</li>
+  <li>For POST/PUT/PATCH, write your JSON body in the <strong>Body</strong> tab</li>
+  <li>Press <strong>Send</strong> or <code>Ctrl+Enter</code></li>
+</ul>
+<h3>Quick Examples</h3>
+<div class="use-case-grid">
+  <div class="use-case-card">
+    <div class="uc-header"><span class="uc-title">QR Code Generator</span><button class="try-btn" onclick="tryExternal('GET','https://freeqr.com/api/v1/?size=300x300&color=ff0000&bgcolor=ffffff&data=Hello','')">Try it</button></div>
+    <div class="uc-desc">Generate a QR code via freeqr.com</div>
+    <div class="uc-body">GET https://freeqr.com/api/v1/?size=300x300&amp;color=ff0000&amp;bgcolor=ffffff&amp;data=Hello</div>
+  </div>
+  <div class="use-case-card">
+    <div class="uc-header"><span class="uc-title">JSONPlaceholder</span><button class="try-btn" onclick="tryExternal('GET','https://jsonplaceholder.typicode.com/posts/1','')">Try it</button></div>
+    <div class="uc-desc">Fetch a sample JSON post</div>
+    <div class="uc-body">GET https://jsonplaceholder.typicode.com/posts/1</div>
+  </div>
+  <div class="use-case-card">
+    <div class="uc-header"><span class="uc-title">POST to JSONPlaceholder</span><button class="try-btn" onclick="tryExternal('POST','https://jsonplaceholder.typicode.com/posts','{\\n  &quot;title&quot;: &quot;Test&quot;,\\n  &quot;body&quot;: &quot;Hello from API Tester&quot;,\\n  &quot;userId&quot;: 1\\n}')">Try it</button></div>
+    <div class="uc-desc">Create a resource with POST</div>
+    <div class="uc-body">POST https://jsonplaceholder.typicode.com/posts\n{\n  "title": "Test",\n  "body": "Hello from API Tester",\n  "userId": 1\n}</div>
+  </div>
+  <div class="use-case-card">
+    <div class="uc-header"><span class="uc-title">IP Info</span><button class="try-btn" onclick="tryExternal('GET','https://ipinfo.io/json','')">Try it</button></div>
+    <div class="uc-desc">Get your public IP information</div>
+    <div class="uc-body">GET https://ipinfo.io/json</div>
+  </div>
+</div>
+<h3>Tips</h3>
+<ul class="doc-notes">
+  <li>All requests are routed through the server proxy — no CORS issues</li>
+  <li>Images, JSON, text, audio, and video responses are rendered automatically</li>
+  <li>Binary responses can be downloaded via the download bar</li>
+  <li>Check the <strong>Headers</strong> response tab for full response details</li>
+</ul>`;
+
+  // Switch to docs tab
+  const docsTab = document.querySelector('#reqTabs .tab[data-tab="docs"]');
+  if (docsTab) switchReqTab(docsTab);
+}
+
+function tryExternal(method, url, body) {
+  document.getElementById('methodSelect').value = method;
+  document.getElementById('urlInput').value = url;
+  document.getElementById('bodyEditor').value = body ? body.replace(/\\n/g, '\n') : '';
+  // Switch to body tab if there's a body, otherwise stay
+  if (body) {
+    const bodyTab = document.querySelector('#reqTabs .tab[data-tab="body"]');
+    if (bodyTab) switchReqTab(bodyTab);
+  }
+}
+
 function loadEndpoint(ep, el) {
   document.getElementById('methodSelect').value = ep.method;
   document.getElementById('urlInput').value = ep.path;
@@ -644,8 +737,21 @@ async function sendRequest() {
   const params = getParams();
 
   // Build full URL
-  if (!url.startsWith('http')) url = BASE + (url.startsWith('/') ? '' : '/') + url;
-  if (params) url += (url.includes('?') ? '&' : '?') + params;
+  const isExternal = url.startsWith('http://') || url.startsWith('https://');
+  let fetchUrl;
+  if (isExternal) {
+    // Route external URLs through server proxy to bypass CORS
+    fetchUrl = BASE + '/proxy?url=' + encodeURIComponent(url);
+  } else {
+    url = BASE + (url.startsWith('/') ? '' : '/') + url;
+    fetchUrl = url;
+  }
+  if (!isExternal && params) url += (url.includes('?') ? '&' : '?') + params;
+  if (!isExternal && params) fetchUrl = url;
+  if (isExternal && params) {
+    url += (url.includes('?') ? '&' : '?') + params;
+    fetchUrl = BASE + '/proxy?url=' + encodeURIComponent(url);
+  }
 
   // Detect download-heavy endpoints for longer timeout
   const isDownloadEndpoint = url.includes('/unidl');
@@ -656,7 +762,7 @@ async function sendRequest() {
   activeAbortController = new AbortController();
   const timeoutId = setTimeout(() => activeAbortController.abort(), TIMEOUT_MS);
 
-  const opts = { method, headers, signal: activeAbortController.signal };
+  const opts = { method: isExternal ? method : method, headers, signal: activeAbortController.signal };
   if (['POST','PUT','PATCH'].includes(method) && bodyText) {
     opts.body = bodyText;
   }
@@ -677,7 +783,7 @@ async function sendRequest() {
   }
 
   try {
-    const response = await fetch(url, opts);
+    const response = await fetch(fetchUrl, opts);
     clearTimeout(timeoutId);
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     const elapsed = Math.round(performance.now() - startTime);
@@ -846,7 +952,7 @@ async function sendRequest() {
     }
 
     // Add to history
-    addHistory(method, url.replace(BASE, ''), response.status, elapsed);
+    addHistory(method, isExternal ? url : url.replace(BASE, ''), response.status, elapsed);
 
   } catch (err) {
     clearTimeout(timeoutId);
@@ -938,6 +1044,8 @@ function renderHistory() {
     div.onclick = () => {
       document.getElementById('methodSelect').value = h.method;
       document.getElementById('urlInput').value = h.path;
+      // Clear body for GET from history
+      if (h.method === 'GET') document.getElementById('bodyEditor').value = '';
     };
     list.appendChild(div);
   });
@@ -1053,15 +1161,36 @@ function appendLogEntry(entry) {
   const container = document.getElementById('logContent');
   if (!container) return;
   const line = document.createElement('div');
-  line.className = 'log-line';
   const lvl = entry.level || 'INFO';
-  line.innerHTML = `<span class="log-ts">${escHtml(entry.ts)}</span> <span class="log-level ${lvl}">${escHtml(lvl)}</span> <span class="log-name">${escHtml(entry.name)}</span> ${escHtml(entry.msg)}`;
+  const msg = entry.msg || '';
+  const name = entry.name || '';
+  const shortLvl = {DEBUG:'DBG',INFO:'INF',WARNING:'WRN',ERROR:'ERR',CRITICAL:'CRT'}[lvl] || lvl.slice(0,3);
+
+  // Classify the log line for styling
+  let lineClass = 'log-line';
+  if (msg.includes('↓') || msg.includes('[download]')) lineClass += ' log-progress';
+  else if (msg.includes('✓') || msg.includes('Finished')) lineClass += ' log-finished';
+  else if (lvl === 'ERROR' || lvl === 'CRITICAL' || msg.includes('✗')) lineClass += ' log-error-line';
+  line.className = lineClass;
+
+  // Color-code source name
+  let srcClass = 'src-default';
+  if (name.startsWith('uvicorn')) srcClass = 'src-uvicorn';
+  else if (name === 'download') srcClass = 'src-download';
+  else if (name.startsWith('yt-dlp') || name.startsWith('yt_dlp')) srcClass = 'src-yt-dlp';
+  else if (name.startsWith('services') || name.includes('config_builder') || name.includes('endpoint')) srcClass = 'src-services';
+  else if (name === 'main' || name === '__main__') srcClass = 'src-main';
+
+  // Shorten the source name for display
+  let shortName = name;
+  if (name.startsWith('uvicorn.')) shortName = 'uvicorn';
+  else if (name.length > 12) shortName = name.slice(0, 12);
+
+  line.innerHTML = `<span class="log-ts">${escHtml(entry.ts)}</span><span class="log-level ${lvl}">${escHtml(shortLvl)}</span><span class="log-name ${srcClass}" title="${escHtml(name)}">${escHtml(shortName)}</span><span class="log-msg">${escHtml(msg)}</span>`;
   container.appendChild(line);
-  // Auto-scroll if near bottom
-  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
   if (atBottom) container.scrollTop = container.scrollHeight;
-  // Limit DOM nodes
-  while (container.children.length > 1000) container.removeChild(container.firstChild);
+  while (container.children.length > 2000) container.removeChild(container.firstChild);
 }
 
 function clearLogs() {

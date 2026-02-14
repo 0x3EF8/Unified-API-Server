@@ -1,4 +1,4 @@
-"""YouTube service setup — FFmpeg auto-download."""
+"""YouTube service setup — FFmpeg & Deno auto-download."""
 
 import os
 import zipfile
@@ -55,14 +55,44 @@ def download_ffmpeg() -> bool:
         return False
 
 
+def download_deno() -> bool:
+    """Download Deno to service bin directory (required by yt-dlp for YouTube)."""
+    deno_exe = BIN_DIR / "deno.exe"
+
+    if deno_exe.exists():
+        logger.debug(f"Deno already exists at {deno_exe}")
+        return True
+
+    try:
+        logger.info("Deno not found. Downloading (required for YouTube extraction)...")
+        BIN_DIR.mkdir(parents=True, exist_ok=True)
+
+        url = "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
+        zip_path = BIN_DIR.parent / "deno_temp.zip"
+
+        logger.info(f"Downloading Deno from GitHub releases...")
+        urlretrieve(url, zip_path)
+        logger.info("Download complete. Extracting...")
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extract("deno.exe", BIN_DIR)
+
+        zip_path.unlink(missing_ok=True)
+        logger.info(f"Deno installed to {BIN_DIR}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to download Deno: {e}")
+        logger.info("Deno is required for YouTube — install manually: https://deno.land")
+        return False
+
+
 def setup_dependencies():
-    """Download FFmpeg and add to PATH."""
-    ffmpeg_available = download_ffmpeg()
+    """Download FFmpeg and Deno, add bin/ to PATH."""
+    download_ffmpeg()
+    download_deno()
 
-    if ffmpeg_available:
-        ffmpeg_bin = str(BIN_DIR.absolute())
-        if ffmpeg_bin not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = f"{ffmpeg_bin}{os.pathsep}{os.environ.get('PATH', '')}"
-            logger.debug(f"Added {ffmpeg_bin} to PATH")
-
-    return ffmpeg_available
+    bin_path = str(BIN_DIR.absolute())
+    if bin_path not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{bin_path}{os.pathsep}{os.environ.get('PATH', '')}"
+        logger.debug(f"Added {bin_path} to PATH")

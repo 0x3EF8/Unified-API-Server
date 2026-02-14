@@ -1,6 +1,7 @@
 """Converts DownloadRequest models into yt-dlp configuration dictionaries."""
 
 import logging
+import time
 from typing import Dict, Any
 from pathlib import Path
 
@@ -12,6 +13,67 @@ from .formats import get_quality_format
 logger = logging.getLogger(__name__)
 
 
+class _YDLLogger:
+    """Routes yt-dlp internal messages to Python logging."""
+
+    def __init__(self):
+        self._log = logging.getLogger("yt-dlp")
+
+    def debug(self, msg):
+        # yt-dlp sends download progress as debug messages starting with [download]
+        if msg.startswith("[download]"):
+            self._log.info(msg)
+        elif msg.startswith("["):
+            self._log.debug(msg)
+
+    def info(self, msg):
+        self._log.info(msg)
+
+    def warning(self, msg):
+        self._log.warning(msg)
+
+    def error(self, msg):
+        self._log.error(msg)
+
+
+def _make_progress_hook(download_id: str):
+    """Create a progress hook that logs download progress."""
+    _last_log = {"t": 0}
+    dl_logger = logging.getLogger("download")
+
+    def hook(d):
+        status = d.get("status")
+        now = time.time()
+
+        if status == "downloading":
+            # Throttle: log at most every 2 seconds
+            if now - _last_log["t"] < 2:
+                return
+            _last_log["t"] = now
+
+            pct = d.get("_percent_str", "?").strip()
+            speed = d.get("_speed_str", "?").strip()
+            eta = d.get("_eta_str", "?").strip()
+            total = d.get("_total_bytes_str") or d.get("_total_bytes_estimate_str") or "?"
+            total = total.strip() if isinstance(total, str) else total
+            fname = d.get("filename", "")
+            fname = Path(fname).name if fname else ""
+
+            dl_logger.info(f"↓ {pct} of {total} at {speed} ETA {eta} | {fname}")
+
+        elif status == "finished":
+            size = d.get("_total_bytes_str") or d.get("total_bytes") or "?"
+            if isinstance(size, (int, float)):
+                size = f"{size / 1024 / 1024:.2f} MiB"
+            fname = Path(d.get("filename", "")).name
+            dl_logger.info(f"✓ Finished downloading {fname} ({size})")
+
+        elif status == "error":
+            dl_logger.error(f"✗ Download error: {d.get('filename', 'unknown')}")
+
+    return hook
+
+
 def build_ydl_opts(
     request: DownloadRequest,
     output_dir: Path,
@@ -20,8 +82,8 @@ def build_ydl_opts(
 
     # Base options
     opts = {
-        "quiet": True,
-        "no_warnings": True,
+        "logger": _YDLLogger(),
+        "progress_hooks": [_make_progress_hook(str(output_dir.name))],
         "retries": config.RETRY_ATTEMPTS,
         "socket_timeout": config.SOCKET_TIMEOUT,
         "concurrent_fragment_downloads": config.CONCURRENT_FRAGMENTS if ffmpeg_available() else 4,
